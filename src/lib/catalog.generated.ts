@@ -66,7 +66,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-alpha-jacket-men-graphite-black.webp",
           "/images/products/arcteryx-alpha-jacket-men-graphite-black-back-view.webp",
           "/images/products/arcteryx-alpha-jacket-men-graphite-black-fabric-detail.webp",
-          "/images/products/arcteryx-alpha-jacket-men-graphite-black-hood.webp"
+          "/images/products/arcteryx-alpha-jacket-men-graphite-black-hood.webp",
+          "/images/products/arcteryx-alpha-jacket-men-graphite-black-hover.webp",
+          "/images/products/arcteryx-alpha-jacket-men-graphite-black-side-view.webp"
         ]
       }
     ]
@@ -100,7 +102,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-alpha-sv-jacket-men-24k-black.webp",
           "/images/products/arcteryx-alpha-sv-jacket-men-24k-black-back-view.webp",
           "/images/products/arcteryx-alpha-sv-jacket-men-24k-black-fabric-detail.webp",
-          "/images/products/arcteryx-alpha-sv-jacket-men-24k-black-hood.webp"
+          "/images/products/arcteryx-alpha-sv-jacket-men-24k-black-hood.webp",
+          "/images/products/arcteryx-alpha-sv-jacket-men-24k-black-hover.webp",
+          "/images/products/arcteryx-alpha-sv-jacket-men-24k-black-side-view.webp"
         ]
       }
     ]
@@ -134,7 +138,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-atom-hoody-men-black.webp",
           "/images/products/arcteryx-atom-hoody-men-black-back-view.webp",
           "/images/products/arcteryx-atom-hoody-men-black-fabric-detail.webp",
-          "/images/products/arcteryx-atom-hoody-men-black-hood.webp"
+          "/images/products/arcteryx-atom-hoody-men-black-hood.webp",
+          "/images/products/arcteryx-atom-hoody-men-black-hover.webp",
+          "/images/products/arcteryx-atom-hoody-men-black-side-view.webp"
         ]
       }
     ]
@@ -168,7 +174,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-atom-jacket-men-black.webp",
           "/images/products/arcteryx-atom-jacket-men-black-back-view.webp",
           "/images/products/arcteryx-atom-jacket-men-black-detail-1.webp",
-          "/images/products/arcteryx-atom-jacket-men-black-fabric-detail.webp"
+          "/images/products/arcteryx-atom-jacket-men-black-fabric-detail.webp",
+          "/images/products/arcteryx-atom-jacket-men-black-hover.webp",
+          "/images/products/arcteryx-atom-jacket-men-black-side-view.webp"
         ]
       }
     ]
@@ -202,7 +210,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-beta-ar-jacket-men-black.webp",
           "/images/products/arcteryx-beta-ar-jacket-men-black-back-view.webp",
           "/images/products/arcteryx-beta-ar-jacket-men-black-fabric-detail.webp",
-          "/images/products/arcteryx-beta-ar-jacket-men-black-hood.webp"
+          "/images/products/arcteryx-beta-ar-jacket-men-black-hood.webp",
+          "/images/products/arcteryx-beta-ar-jacket-men-black-hover.webp",
+          "/images/products/arcteryx-beta-ar-jacket-men-black-side-view.webp"
         ]
       },
       {
@@ -214,7 +224,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-beta-ar-jacket-men-cloud-void.webp",
           "/images/products/arcteryx-beta-ar-jacket-men-cloud-void-back-view.webp",
           "/images/products/arcteryx-beta-ar-jacket-men-cloud-void-fabric-detail.webp",
-          "/images/products/arcteryx-beta-ar-jacket-men-cloud-void-hood.webp"
+          "/images/products/arcteryx-beta-ar-jacket-men-cloud-void-hood.webp",
+          "/images/products/arcteryx-beta-ar-jacket-men-cloud-void-hover.webp",
+          "/images/products/arcteryx-beta-ar-jacket-men-cloud-void-side-view.webp"
         ]
       }
     ]
@@ -248,7 +260,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-beta-jacket-men-black.webp",
           "/images/products/arcteryx-beta-jacket-men-black-back-view.webp",
           "/images/products/arcteryx-beta-jacket-men-black-fabric-detail.webp",
-          "/images/products/arcteryx-beta-jacket-men-black-hood.webp"
+          "/images/products/arcteryx-beta-jacket-men-black-hood.webp",
+          "/images/products/arcteryx-beta-jacket-men-black-hover.webp",
+          "/images/products/arcteryx-beta-jacket-men-black-side-view.webp"
         ]
       },
       {
@@ -260,7 +274,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-beta-jacket-men-sea-salt.webp",
           "/images/products/arcteryx-beta-jacket-men-sea-salt-back-view.webp",
           "/images/products/arcteryx-beta-jacket-men-sea-salt-fabric-detail.webp",
-          "/images/products/arcteryx-beta-jacket-men-sea-salt-hood.webp"
+          "/images/products/arcteryx-beta-jacket-men-sea-salt-hood.webp",
+          "/images/products/arcteryx-beta-jacket-men-sea-salt-hover.webp",
+          "/images/products/arcteryx-beta-jacket-men-sea-salt-side-view.webp"
         ]
       },
       {
@@ -272,7 +288,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-beta-jacket-men-headwaters.webp",
           "/images/products/arcteryx-beta-jacket-men-headwaters-back-view.webp",
           "/images/products/arcteryx-beta-jacket-men-headwaters-full-body.webp",
-          "/images/products/arcteryx-beta-jacket-men-headwaters-hood.webp"
+          "/images/products/arcteryx-beta-jacket-men-headwaters-hood.webp",
+          "/images/products/arcteryx-beta-jacket-men-headwaters-hover.webp",
+          "/images/products/arcteryx-beta-jacket-men-headwaters-side-view.webp"
         ]
       }
     ]
@@ -306,7 +324,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-beta-sl-jacket-men-black.webp",
           "/images/products/arcteryx-beta-sl-jacket-men-black-back-view.webp",
           "/images/products/arcteryx-beta-sl-jacket-men-black-fabric-detail.webp",
-          "/images/products/arcteryx-beta-sl-jacket-men-black-hood.webp"
+          "/images/products/arcteryx-beta-sl-jacket-men-black-hood.webp",
+          "/images/products/arcteryx-beta-sl-jacket-men-black-hover.webp",
+          "/images/products/arcteryx-beta-sl-jacket-men-black-side-view.webp"
         ]
       },
       {
@@ -318,7 +338,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-beta-sl-jacket-men-cloud.webp",
           "/images/products/arcteryx-beta-sl-jacket-men-cloud-back-view.webp",
           "/images/products/arcteryx-beta-sl-jacket-men-cloud-fabric-detail.webp",
-          "/images/products/arcteryx-beta-sl-jacket-men-cloud-hood.webp"
+          "/images/products/arcteryx-beta-sl-jacket-men-cloud-hood.webp",
+          "/images/products/arcteryx-beta-sl-jacket-men-cloud-hover.webp",
+          "/images/products/arcteryx-beta-sl-jacket-men-cloud-side-view.webp"
         ]
       }
     ]
@@ -352,7 +374,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-gamma-lightweight-hoody-men-black.webp",
           "/images/products/arcteryx-gamma-lightweight-hoody-men-black-back-view.webp",
           "/images/products/arcteryx-gamma-lightweight-hoody-men-black-full-body.webp",
-          "/images/products/arcteryx-gamma-lightweight-hoody-men-black-hood.webp"
+          "/images/products/arcteryx-gamma-lightweight-hoody-men-black-hood.webp",
+          "/images/products/arcteryx-gamma-lightweight-hoody-men-black-hover.webp",
+          "/images/products/arcteryx-gamma-lightweight-hoody-men-black-side-view.webp"
         ]
       },
       {
@@ -364,7 +388,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-gamma-lightweight-hoody-men-void.webp",
           "/images/products/arcteryx-gamma-lightweight-hoody-men-void-back-view.webp",
           "/images/products/arcteryx-gamma-lightweight-hoody-men-void-full-body.webp",
-          "/images/products/arcteryx-gamma-lightweight-hoody-men-void-hood.webp"
+          "/images/products/arcteryx-gamma-lightweight-hoody-men-void-hood.webp",
+          "/images/products/arcteryx-gamma-lightweight-hoody-men-void-hover.webp",
+          "/images/products/arcteryx-gamma-lightweight-hoody-men-void-side-view.webp"
         ]
       }
     ]
@@ -398,7 +424,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-proton-sl-hoody-men-black.webp",
           "/images/products/arcteryx-proton-sl-hoody-men-black-back-view.webp",
           "/images/products/arcteryx-proton-sl-hoody-men-black-fabric-detail.webp",
-          "/images/products/arcteryx-proton-sl-hoody-men-black-hood.webp"
+          "/images/products/arcteryx-proton-sl-hoody-men-black-hood.webp",
+          "/images/products/arcteryx-proton-sl-hoody-men-black-hover.webp",
+          "/images/products/arcteryx-proton-sl-hoody-men-black-side-view.webp"
         ]
       },
       {
@@ -441,7 +469,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-serratus-hoody-men-void-cloud.webp",
           "/images/products/arcteryx-serratus-hoody-men-void-cloud-back-view.webp",
           "/images/products/arcteryx-serratus-hoody-men-void-cloud-fabric-detail.webp",
-          "/images/products/arcteryx-serratus-hoody-men-void-cloud-hood.webp"
+          "/images/products/arcteryx-serratus-hoody-men-void-cloud-hood.webp",
+          "/images/products/arcteryx-serratus-hoody-men-void-cloud-hover.webp",
+          "/images/products/arcteryx-serratus-hoody-men-void-cloud-side-view.webp"
         ]
       }
     ]
@@ -475,7 +505,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-squamish-hoody-men-black.webp",
           "/images/products/arcteryx-squamish-hoody-men-black-back-view.webp",
           "/images/products/arcteryx-squamish-hoody-men-black-fabric-detail.webp",
-          "/images/products/arcteryx-squamish-hoody-men-black-hood.webp"
+          "/images/products/arcteryx-squamish-hoody-men-black-hood.webp",
+          "/images/products/arcteryx-squamish-hoody-men-black-hover.webp",
+          "/images/products/arcteryx-squamish-hoody-men-black-side-view.webp"
         ]
       },
       {
@@ -487,7 +519,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-squamish-hoody-men-habitat.webp",
           "/images/products/arcteryx-squamish-hoody-men-habitat-back-view.webp",
           "/images/products/arcteryx-squamish-hoody-men-habitat-full-body.webp",
-          "/images/products/arcteryx-squamish-hoody-men-habitat-hood.webp"
+          "/images/products/arcteryx-squamish-hoody-men-habitat-hood.webp",
+          "/images/products/arcteryx-squamish-hoody-men-habitat-hover.webp",
+          "/images/products/arcteryx-squamish-hoody-men-habitat-side-view.webp"
         ]
       }
     ]
@@ -521,7 +555,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-altira-cropped-jacket-women-black.webp",
           "/images/products/arcteryx-altira-cropped-jacket-women-black-back-view.webp",
           "/images/products/arcteryx-altira-cropped-jacket-women-black-fabric-detail.webp",
-          "/images/products/arcteryx-altira-cropped-jacket-women-black-hood.webp"
+          "/images/products/arcteryx-altira-cropped-jacket-women-black-hood.webp",
+          "/images/products/arcteryx-altira-cropped-jacket-women-black-hover.webp",
+          "/images/products/arcteryx-altira-cropped-jacket-women-black-side-view.webp"
         ]
       }
     ]
@@ -555,7 +591,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-atom-jacket-women-alpine-rose.webp",
           "/images/products/arcteryx-atom-jacket-women-alpine-rose-back-view.webp",
           "/images/products/arcteryx-atom-jacket-women-alpine-rose-detail-1.webp",
-          "/images/products/arcteryx-atom-jacket-women-alpine-rose-fabric-detail.webp"
+          "/images/products/arcteryx-atom-jacket-women-alpine-rose-fabric-detail.webp",
+          "/images/products/arcteryx-atom-jacket-women-alpine-rose-hover.webp",
+          "/images/products/arcteryx-atom-jacket-women-alpine-rose-side-view.webp"
         ]
       },
       {
@@ -567,7 +605,8 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-atom-jacket-women-black.webp",
           "/images/products/arcteryx-atom-jacket-women-black-back-view.webp",
           "/images/products/arcteryx-atom-jacket-women-black-detail-1.webp",
-          "/images/products/arcteryx-atom-jacket-women-black-fabric-detail.webp"
+          "/images/products/arcteryx-atom-jacket-women-black-fabric-detail.webp",
+          "/images/products/arcteryx-atom-jacket-women-black-side-view.webp"
         ]
       }
     ]
@@ -601,7 +640,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-atom-sl-hoody-women-black.webp",
           "/images/products/arcteryx-atom-sl-hoody-women-black-back-view.webp",
           "/images/products/arcteryx-atom-sl-hoody-women-black-fabric-detail.webp",
-          "/images/products/arcteryx-atom-sl-hoody-women-black-hood.webp"
+          "/images/products/arcteryx-atom-sl-hoody-women-black-hood.webp",
+          "/images/products/arcteryx-atom-sl-hoody-women-black-hover.webp",
+          "/images/products/arcteryx-atom-sl-hoody-women-black-side-view.webp"
         ]
       },
       {
@@ -613,7 +654,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-atom-sl-hoody-women-sea-salt.webp",
           "/images/products/arcteryx-atom-sl-hoody-women-sea-salt-fabric-detail.webp",
           "/images/products/arcteryx-atom-sl-hoody-women-sea-salt-hood.webp",
-          "/images/products/arcteryx-atom-sl-hoody-women-sea-salt-hover.webp"
+          "/images/products/arcteryx-atom-sl-hoody-women-sea-salt-hover.webp",
+          "/images/products/arcteryx-atom-sl-hoody-women-sea-salt-hover.webp",
+          "/images/products/arcteryx-atom-sl-hoody-women-sea-salt-side-view.webp"
         ]
       },
       {
@@ -625,7 +668,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-atom-sl-hoody-women-alpine-blue.webp",
           "/images/products/arcteryx-atom-sl-hoody-women-alpine-blue-back-view.webp",
           "/images/products/arcteryx-atom-sl-hoody-women-alpine-blue-full-body.webp",
-          "/images/products/arcteryx-atom-sl-hoody-women-alpine-blue-hood.webp"
+          "/images/products/arcteryx-atom-sl-hoody-women-alpine-blue-hood.webp",
+          "/images/products/arcteryx-atom-sl-hoody-women-alpine-blue-hover.webp",
+          "/images/products/arcteryx-atom-sl-hoody-women-alpine-blue-side-view.webp"
         ]
       },
       {
@@ -637,7 +682,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-atom-sl-hoody-women-arctic-silk.webp",
           "/images/products/arcteryx-atom-sl-hoody-women-arctic-silk-back-view.webp",
           "/images/products/arcteryx-atom-sl-hoody-women-arctic-silk-full-body.webp",
-          "/images/products/arcteryx-atom-sl-hoody-women-arctic-silk-hood.webp"
+          "/images/products/arcteryx-atom-sl-hoody-women-arctic-silk-hood.webp",
+          "/images/products/arcteryx-atom-sl-hoody-women-arctic-silk-hover.webp",
+          "/images/products/arcteryx-atom-sl-hoody-women-arctic-silk-side-view.webp"
         ]
       }
     ]
@@ -671,7 +718,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-beta-ar-jacket-women-black.webp",
           "/images/products/arcteryx-beta-ar-jacket-women-black-back-view.webp",
           "/images/products/arcteryx-beta-ar-jacket-women-black-fabric-detail.webp",
-          "/images/products/arcteryx-beta-ar-jacket-women-black-hood.webp"
+          "/images/products/arcteryx-beta-ar-jacket-women-black-hood.webp",
+          "/images/products/arcteryx-beta-ar-jacket-women-black-hover.webp",
+          "/images/products/arcteryx-beta-ar-jacket-women-black-side-view.webp"
         ]
       }
     ]
@@ -705,7 +754,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-clarkia-ar-insulated-hoody-women-black.webp",
           "/images/products/arcteryx-clarkia-ar-insulated-hoody-women-black-back-view.webp",
           "/images/products/arcteryx-clarkia-ar-insulated-hoody-women-black-fabric-detail.webp",
-          "/images/products/arcteryx-clarkia-ar-insulated-hoody-women-black-hood.webp"
+          "/images/products/arcteryx-clarkia-ar-insulated-hoody-women-black-hood.webp",
+          "/images/products/arcteryx-clarkia-ar-insulated-hoody-women-black-hover.webp",
+          "/images/products/arcteryx-clarkia-ar-insulated-hoody-women-black-side-view.webp"
         ]
       },
       {
@@ -717,7 +768,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-clarkia-ar-insulated-hoody-women-lt-renegade.webp",
           "/images/products/arcteryx-clarkia-ar-insulated-hoody-women-lt-renegade-back-view.webp",
           "/images/products/arcteryx-clarkia-ar-insulated-hoody-women-lt-renegade-fabric-detail.webp",
-          "/images/products/arcteryx-clarkia-ar-insulated-hoody-women-lt-renegade-hood.webp"
+          "/images/products/arcteryx-clarkia-ar-insulated-hoody-women-lt-renegade-hood.webp",
+          "/images/products/arcteryx-clarkia-ar-insulated-hoody-women-lt-renegade-hover.webp",
+          "/images/products/arcteryx-clarkia-ar-insulated-hoody-women-lt-renegade-side-view.webp"
         ]
       }
     ]
@@ -793,7 +846,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-elec-insulated-jacket-women-black.webp",
           "/images/products/arcteryx-elec-insulated-jacket-women-black-back-view.webp",
           "/images/products/arcteryx-elec-insulated-jacket-women-black-detail-1.webp",
-          "/images/products/arcteryx-elec-insulated-jacket-women-black-fabric-detail.webp"
+          "/images/products/arcteryx-elec-insulated-jacket-women-black-fabric-detail.webp",
+          "/images/products/arcteryx-elec-insulated-jacket-women-black-hover.webp",
+          "/images/products/arcteryx-elec-insulated-jacket-women-black-side-view.webp"
         ]
       }
     ]
@@ -827,7 +882,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-gamma-lightweight-hoody-women-atmos-solitude.webp",
           "/images/products/arcteryx-gamma-lightweight-hoody-women-atmos-solitude-back-view.webp",
           "/images/products/arcteryx-gamma-lightweight-hoody-women-atmos-solitude-fabric-detail.webp",
-          "/images/products/arcteryx-gamma-lightweight-hoody-women-atmos-solitude-hood.webp"
+          "/images/products/arcteryx-gamma-lightweight-hoody-women-atmos-solitude-hood.webp",
+          "/images/products/arcteryx-gamma-lightweight-hoody-women-atmos-solitude-hover.webp",
+          "/images/products/arcteryx-gamma-lightweight-hoody-women-atmos-solitude-side-view.webp"
         ]
       },
       {
@@ -839,7 +896,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-gamma-lightweight-hoody-women-black.webp",
           "/images/products/arcteryx-gamma-lightweight-hoody-women-black-back-view.webp",
           "/images/products/arcteryx-gamma-lightweight-hoody-women-black-fabric-detail.webp",
-          "/images/products/arcteryx-gamma-lightweight-hoody-women-black-hood.webp"
+          "/images/products/arcteryx-gamma-lightweight-hoody-women-black-hood.webp",
+          "/images/products/arcteryx-gamma-lightweight-hoody-women-black-hover.webp",
+          "/images/products/arcteryx-gamma-lightweight-hoody-women-black-side-view.webp"
         ]
       }
     ]
@@ -873,7 +932,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-gamma-mx-hoody-women-arctic-silk.webp",
           "/images/products/arcteryx-gamma-mx-hoody-women-arctic-silk-back-view.webp",
           "/images/products/arcteryx-gamma-mx-hoody-women-arctic-silk-fabric-detail.webp",
-          "/images/products/arcteryx-gamma-mx-hoody-women-arctic-silk-hood.webp"
+          "/images/products/arcteryx-gamma-mx-hoody-women-arctic-silk-hood.webp",
+          "/images/products/arcteryx-gamma-mx-hoody-women-arctic-silk-hover.webp",
+          "/images/products/arcteryx-gamma-mx-hoody-women-arctic-silk-side-view.webp"
         ]
       },
       {
@@ -885,7 +946,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-gamma-mx-hoody-women-black.webp",
           "/images/products/arcteryx-gamma-mx-hoody-women-black-back-view.webp",
           "/images/products/arcteryx-gamma-mx-hoody-women-black-fabric-detail.webp",
-          "/images/products/arcteryx-gamma-mx-hoody-women-black-hood.webp"
+          "/images/products/arcteryx-gamma-mx-hoody-women-black-hood.webp",
+          "/images/products/arcteryx-gamma-mx-hoody-women-black-hover.webp",
+          "/images/products/arcteryx-gamma-mx-hoody-women-black-side-view.webp"
         ]
       }
     ]
@@ -919,7 +982,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-naya-cropped-jacket-women-black.webp",
           "/images/products/arcteryx-naya-cropped-jacket-women-black-back-view.webp",
           "/images/products/arcteryx-naya-cropped-jacket-women-black-full-body.webp",
-          "/images/products/arcteryx-naya-cropped-jacket-women-black-hood.webp"
+          "/images/products/arcteryx-naya-cropped-jacket-women-black-hood.webp",
+          "/images/products/arcteryx-naya-cropped-jacket-women-black-hover.webp",
+          "/images/products/arcteryx-naya-cropped-jacket-women-black-side-view.webp"
         ]
       }
     ]
@@ -953,7 +1018,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-naya-cropped-stowhood-jacket-women-black.webp",
           "/images/products/arcteryx-naya-cropped-stowhood-jacket-women-black-back-view.webp",
           "/images/products/arcteryx-naya-cropped-stowhood-jacket-women-black-full-body.webp",
-          "/images/products/arcteryx-naya-cropped-stowhood-jacket-women-black-hood.webp"
+          "/images/products/arcteryx-naya-cropped-stowhood-jacket-women-black-hood.webp",
+          "/images/products/arcteryx-naya-cropped-stowhood-jacket-women-black-hover.webp",
+          "/images/products/arcteryx-naya-cropped-stowhood-jacket-women-black-side-view.webp"
         ]
       },
       {
@@ -965,7 +1032,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-naya-cropped-stowhood-jacket-women-habitat.webp",
           "/images/products/arcteryx-naya-cropped-stowhood-jacket-women-habitat-back-view.webp",
           "/images/products/arcteryx-naya-cropped-stowhood-jacket-women-habitat-full-body.webp",
-          "/images/products/arcteryx-naya-cropped-stowhood-jacket-women-habitat-hood.webp"
+          "/images/products/arcteryx-naya-cropped-stowhood-jacket-women-habitat-hood.webp",
+          "/images/products/arcteryx-naya-cropped-stowhood-jacket-women-habitat-hover.webp",
+          "/images/products/arcteryx-naya-cropped-stowhood-jacket-women-habitat-side-view.webp"
         ]
       }
     ]
@@ -999,7 +1068,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-sentinel-jacket-women-black.webp",
           "/images/products/arcteryx-sentinel-jacket-women-black-back-view.webp",
           "/images/products/arcteryx-sentinel-jacket-women-black-full-body.webp",
-          "/images/products/arcteryx-sentinel-jacket-women-black-hood.webp"
+          "/images/products/arcteryx-sentinel-jacket-women-black-hood.webp",
+          "/images/products/arcteryx-sentinel-jacket-women-black-hover.webp",
+          "/images/products/arcteryx-sentinel-jacket-women-black-side-view.webp"
         ]
       }
     ]
@@ -1033,7 +1104,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-squamish-hoody-women-black.webp",
           "/images/products/arcteryx-squamish-hoody-women-black-back-view.webp",
           "/images/products/arcteryx-squamish-hoody-women-black-fabric-detail.webp",
-          "/images/products/arcteryx-squamish-hoody-women-black-hood.webp"
+          "/images/products/arcteryx-squamish-hoody-women-black-hood.webp",
+          "/images/products/arcteryx-squamish-hoody-women-black-hover.webp",
+          "/images/products/arcteryx-squamish-hoody-women-black-side-view.webp"
         ]
       },
       {
@@ -1045,7 +1118,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-squamish-hoody-women-mongoose.webp",
           "/images/products/arcteryx-squamish-hoody-women-mongoose-back-view.webp",
           "/images/products/arcteryx-squamish-hoody-women-mongoose-fabric-detail.webp",
-          "/images/products/arcteryx-squamish-hoody-women-mongoose-hood.webp"
+          "/images/products/arcteryx-squamish-hoody-women-mongoose-hood.webp",
+          "/images/products/arcteryx-squamish-hoody-women-mongoose-hover.webp",
+          "/images/products/arcteryx-squamish-hoody-women-mongoose-side-view.webp"
         ]
       },
       {
@@ -1057,7 +1132,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-squamish-hoody-women-alpine-blue.webp",
           "/images/products/arcteryx-squamish-hoody-women-alpine-blue-back-view.webp",
           "/images/products/arcteryx-squamish-hoody-women-alpine-blue-full-body.webp",
-          "/images/products/arcteryx-squamish-hoody-women-alpine-blue-hood.webp"
+          "/images/products/arcteryx-squamish-hoody-women-alpine-blue-hood.webp",
+          "/images/products/arcteryx-squamish-hoody-women-alpine-blue-hover.webp",
+          "/images/products/arcteryx-squamish-hoody-women-alpine-blue-side-view.webp"
         ]
       },
       {
@@ -1069,7 +1146,9 @@ export const CATALOG: CatalogProduct[] = [
           "/images/products/arcteryx-squamish-hoody-women-arctic-silk-sea-salt.webp",
           "/images/products/arcteryx-squamish-hoody-women-arctic-silk-sea-salt-back-view.webp",
           "/images/products/arcteryx-squamish-hoody-women-arctic-silk-sea-salt-full-body.webp",
-          "/images/products/arcteryx-squamish-hoody-women-arctic-silk-sea-salt-hood.webp"
+          "/images/products/arcteryx-squamish-hoody-women-arctic-silk-sea-salt-hood.webp",
+          "/images/products/arcteryx-squamish-hoody-women-arctic-silk-sea-salt-hover.webp",
+          "/images/products/arcteryx-squamish-hoody-women-arctic-silk-sea-salt-side-view.webp"
         ]
       }
     ]

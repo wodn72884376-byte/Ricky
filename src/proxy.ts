@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
-import { publicEnv } from '@/lib/env';
+import { hasSupabaseEnv, publicEnv } from '@/lib/env';
 
 /**
  * Supabase 세션 쿠키 갱신.
@@ -9,9 +9,13 @@ import { publicEnv } from '@/lib/env';
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
 
+  // Supabase가 설정되지 않았으면 세션 갱신할 것도 없다.
+  // 모든 요청을 지나는 코드라 여기서 던지면 사이트 전체가 죽는다.
+  if (!hasSupabaseEnv()) return response;
+
   const supabase = createServerClient(
-    publicEnv.NEXT_PUBLIC_SUPABASE_URL,
-    publicEnv.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    publicEnv().NEXT_PUBLIC_SUPABASE_URL,
+    publicEnv().NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
       cookies: {
         getAll() {

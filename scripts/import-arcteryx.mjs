@@ -98,9 +98,9 @@ for (const p of products) {
     await convert(join(p.dir, c.hero.file), destBase);
     converted++;
 
-    // 상세용 추가 컷 (최대 3장)
+    // 상세용 추가 컷. 레퍼런스가 2열 그리드로 6장 이상을 보여주므로 있는 대로 다 쓴다.
     const extras = [];
-    for (const img of c.images.filter((i) => i !== c.hero).slice(0, 3)) {
+    for (const img of c.images.filter((i) => i !== c.hero)) {
       const b = join(OUT_IMG, `${productSlug}-${colorSlug}-${slug(img.view ?? 'view')}`);
       await sharp(await readFile(join(p.dir, img.file)))
         .resize(DETAIL_W, null, { withoutEnlargement: true })
