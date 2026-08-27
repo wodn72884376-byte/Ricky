@@ -1,0 +1,27 @@
+{
+  "name": "ricky-sourcing",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "RICKY 소싱 리서치 파이프라인 — 한국 인기도 신호 × 캐나다 공식몰 신제품 × CA/KR 가격 비교",
+  "scripts": {
+    "scan": "tsx src/cli.ts scan",
+    "signals": "tsx src/cli.ts signals",
+    "catalog": "tsx src/cli.ts catalog",
+    "compare": "tsx src/cli.ts compare",
+    "doctor": "tsx src/cli.ts doctor",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "browsers": "playwright install chromium"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "playwright": "^1.56.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsx": "^4.20.6",
+    "typescript": "^5",
+    "vitest": "^4.1.11"
+  }
+}

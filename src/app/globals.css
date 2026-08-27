@@ -1,0 +1,255 @@
+@import "tailwindcss";
+@import "./fonts.css";
+
+/**
+ * RICKY 디자인 토큰 — DESIGN.md에서 파생. 여기 없는 색/반경/서체를 컴포넌트에서 직접 쓰지 않는다.
+ * 값을 바꾸려면 DESIGN.md를 먼저 고친다.
+ */
+@theme {
+  /* Color — §2. 브랜드 컬러는 색의 부재다.
+     대비는 `npm run design:contrast`로 검증한다. 값을 바꾸면 그 스크립트도 함께 고친다. */
+  --color-ink: #000000;                     /* 21.00:1 */
+  --color-paper: #ffffff;
+
+  /* 회색 두 단계 — 같은 색(#5d5d5d)의 불투명/투명 버전이다.
+     정보를 싣는 텍스트는 -text, 정보를 싣지 않는 장식은 -muted. 이 구분을 지키는 것이
+     AA 준수의 전부다 (§2 참조). */
+  --color-muted-text: #5d5d5d;              /* 6.58:1 — 관세 캡션·재고 상태·촬영 시각 */
+  --color-muted: rgba(93, 93, 93, 0.64);    /* 2.92:1 — 비활성 내비·구분선 등 비정보 전용 */
+
+  /* 보더 두 단계 — 경계가 유일한 식별 단서인 곳은 -strong. */
+  --color-outline: #c4c4c4;                 /* 1.74:1 — 텍스트 라벨이 있는 버튼 전용 */
+  --color-outline-strong: #949494;          /* 3.03:1 — 박스형 입력 (WCAG 1.4.11) */
+
+  --color-sale: #e8005d;      /* 4.58:1 — 할인 배지 전용 */
+  --color-error: #ed0038;     /* 4.51:1 — 인라인 폼 에러 전용 */
+  --color-skeleton: #f5f5f5;  /* 로딩 플레이스홀더 전용 (텍스트 아님) */
+
+  /* Typography — §3. 한 패밀리, 세 웨이트, 이탤릭 없음. */
+  --font-sans: "Pretendard Variable", ui-sans-serif, system-ui, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+
+  /* 디스플레이 사이즈는 뷰포트에 따라 자란다. 폭 캡을 없앴으므로 고정 px로 두면
+     넓은 화면에서 헤드라인이 상대적으로 작아 보인다. */
+  --text-headline: clamp(30px, 2.6vw, 48px);   /* 섹션 헤드라인 */
+  --text-headline--line-height: 1.13;
+  --text-subhead: clamp(24px, 1.9vw, 34px);    /* 벤토 소형 타일 */
+  /* 2행 편집형 메뉴 — 라이브 29cm 실측 40px/700. 모바일까지 40px는 과하므로 하한을 둔다. */
+  --text-navlead: clamp(28px, 2.2vw, 40px);
+  --text-subhead--line-height: 1.21;
+  --text-editorial: clamp(22px, 1.5vw, 28px);  /* 편집 카드 타이틀 — 시스템의 시그니처 단위 */
+  --text-editorial--line-height: 1.36;
+
+  /* 본문 계열은 한 단계씩 올렸다. 12px 상품명은 좁은 카드 기준의 값이라
+     풀블리드 그리드에서는 읽히지 않는다. */
+  --text-body: 16px;                  /* 편집 본문 */
+  --text-body--line-height: 1.55;
+  /* 실측(16/13)보다 40% 키웠다 — 풀블리드 지면에서는 실측값이 작아 보인다. */
+  --text-nav: 22px;              /* 3행 브랜드 행 */
+  --text-util: 18px;             /* 1행 유틸리티 */
+  --text-cta: 15px;                   /* 고스트 CTA */
+  --text-label: 14px;                 /* 푸터 · 조밀한 내비 행 */
+  --text-label--line-height: 1.45;
+  /* 상품 카드는 두 단계다. 이름·가격이 먼저 읽히고 나머지는 받쳐준다.
+     하나로 묶으면 관세 캡션까지 커져서 각주가 각주가 아니게 된다. */
+  --text-product: 15px;               /* 상품명 · 가격 */
+  --text-product--line-height: 1.45;
+  --text-meta: 13px;                  /* 브랜드 · 관세 캡션 · 재고 상태 */
+  --text-meta--line-height: 1.4;
+
+  /* Radius — §5. 0 / 2 / 4 뿐이다. */
+  --radius-inverted: 2px;             /* 반전 블랙 CTA */
+  --radius-ghost: 4px;                /* 고스트 버튼, 박스형 입력 */
+
+  /* Easing — §15 */
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ── Layout — §5 ── */
+  /* 폭 캡 없음. 지면은 화면 끝까지 가고 가터로만 여백을 만든다.
+     읽기 위한 텍스트만 --measure-prose / --measure-form으로 제한한다. */
+  --measure-prose: 640px;
+  --measure-form: 480px;
+  /* 라이브 29cm의 main 폭(1905/1920)만 보고 좁혔더니 실제 화면에서 너무 붙었다.
+     그 측정값은 좌측 필터 사이드바가 있는 목록 페이지 기준이라 체감 여백과 달랐다. */
+  --gutter-mobile: 20px;
+  --gutter-tablet: 32px;
+  --gutter-desktop: 48px;
+
+  --cols-product-mobile: 2;
+  --cols-product-tablet: 3;
+  --cols-product-desktop: 4;
+  --cols-editorial-mobile: 1;
+  --cols-editorial-tablet: 2;
+  --cols-editorial-desktop: 2;
+
+  /* Tap targets & control heights — §5.
+     44px는 프로젝트가 정한 하한이다. AA(SC 2.5.8) 요구는 24px, 44px는 AAA(SC 2.5.5) 기준. */
+  --size-tap-min: 44px;
+  --size-tap-nav: 52px;
+  --size-control-lg: 52px;
+  --size-control-sm: 31px;    /* 시각 높이. 탭 영역은 패딩으로 44px 확보 */
+
+  /* Aspect & fixed heights — §5 */
+  --aspect-product: 4 / 5;
+  --h-gateway-mobile: 60vh;
+  --h-gateway-tablet: 70vh;
+  --h-gateway-desktop: 85vh;
+
+  /* Elevation — §6. box-shadow 토큰은 의도적으로 존재하지 않는다. */
+  --elevation-flat: none;
+  --elevation-outline: 1px solid var(--color-outline);
+  --elevation-outline-strong: 1px solid var(--color-outline-strong);
+  --elevation-focus: 2px solid var(--color-ink);
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+
+  /* Breakpoints — §8. 이 시스템의 브레이크포인트는 셋뿐이다. */
+  --breakpoint-sm: initial;   /* 640px 제거 */
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1440px;
+  --breakpoint-2xl: 1536px;   /* 초광폭에서 상품 그리드 열을 늘리는 데만 쓴다 */
+}
+
+/* Motion durations — §15. Tailwind에 duration 네임스페이스가 없어 커스텀 속성으로 둔다.
+   사용: duration-[var(--motion-standard)] */
+:root {
+  --motion-instant: 0ms;
+  --motion-quick: 150ms;
+  --motion-standard: 250ms;
+  --motion-editorial: 400ms;
+  --motion-page: 350ms;
+
+  /* 보조 모션 — §15 */
+  --motion-stagger: 100ms;
+  --motion-skeleton-pulse: 1000ms;
+  --motion-toast-dwell: 3000ms;   /* dwell은 모션이 아니다 — 아래에서 붕괴시키지 않는다 */
+  --scale-image-hover: 1.04;
+
+  /* Z-index — §5. Tailwind에 z 네임스페이스 확장이 없어 커스텀 속성으로 둔다.
+     임의 리터럴(z-index: 9999) 금지. 층이 부족하면 DESIGN.md §5를 고친다. */
+  --z-base: 0;
+  --z-raised: 10;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-floating: 300;
+  --z-scrim: 400;
+  --z-sheet: 500;
+  --z-toast: 600;
+  --z-tooltip: 700;
+}
+
+/* §15-6 — 모든 motion 토큰이 instant로 붕괴한다. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-quick: 0ms;
+    --motion-standard: 0ms;
+    --motion-editorial: 0ms;
+    --motion-page: 0ms;
+    --motion-stagger: 0ms;
+    --motion-skeleton-pulse: 0ms;
+    --scale-image-hover: 1;
+    /* --motion-toast-dwell은 유지한다. 읽을 시간을 뺏지 않는다. */
+  }
+}
+
+/* 다크 모드 없음 — DESIGN.md §2. 지면은 순백이고 틴트하지 않는다. */
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  word-break: keep-all;  /* 한글 줄바꿈을 어절 단위로 */
+}
+
+/* §6 — 키보드 포커스는 2px 검정 아웃라인 오프셋 */
+:focus-visible {
+  outline: var(--focus-ring-width) solid var(--color-ink);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* 마우스 클릭에는 링을 그리지 않는다. 키보드에만 나타난다. */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ── 브라우저 기본 표면 ──
+   그리지 않은 부분도 디자인의 일부다. 여기를 비워두면 브라우저 기본값(파란 선택 영역,
+   회색 스크롤바)이 그대로 나가서 지면의 모노크롬이 깨진다. */
+
+::selection {
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+
+/* 캐럿도 잉크색 */
+input,
+textarea,
+[contenteditable] {
+  caret-color: var(--color-ink);
+}
+
+/* 스크롤바 — 얇게, 무채색으로. 지면과 경쟁하지 않는다. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-outline) transparent;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-outline);
+  border: 3px solid var(--color-paper);   /* 트랙 여백처럼 보이게 */
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-muted-text);
+}
+
+/* 밑줄은 글자에 붙지 않게 띄운다 — 한글 받침이 밑줄에 닿으면 판독이 나빠진다 */
+a {
+  text-underline-offset: 0.25em;
+  text-decoration-thickness: 1px;
+}
+
+/* 숫자는 항상 자릿수 정렬. 가격·세액·재고가 흔들리면 안 된다 (§3). */
+:where(table, [data-numeric]) {
+  font-variant-numeric: tabular-nums;
+}
+
+/* §14 Skeleton — 1.0s 페이드 펄스. 시머(그라디언트 스윕)를 쓰지 않는다. */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+.animate-skeleton {
+  animation: skeleton-pulse var(--motion-skeleton-pulse) ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-skeleton { animation: none; }
+}
+
+/* §14 Loading — 목록 하단 3점 로더 */
+@keyframes dots-fade {
+  0%, 60%, 100% { opacity: 0.25; }
+  30% { opacity: 1; }
+}
+.animate-dots {
+  animation: dots-fade 1200ms ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-dots { animation: none; opacity: 0.6; }
+}
+
+/* 한글 헤딩 줄바꿈을 고르게 */
+:where(h1, h2, h3) {
+  text-wrap: balance;
+}
+:where(p) {
+  text-wrap: pretty;
+}
