@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createClientIfConfigured } from '@/lib/supabase/client';
 import { Field } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
 
@@ -20,7 +20,14 @@ export function LoginForm({ signup }: { signup: boolean }) {
     event.preventDefault();
     setStatus('sending');
 
-    const { error } = await createClient().auth.signInWithOtp({
+    const supabase = createClientIfConfigured();
+    if (!supabase) {
+      setStatus('error');
+      setMessage('로그인이 아직 준비되지 않았어요. 잠시 후 다시 시도해 주세요.');
+      return;
+    }
+
+    const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
     });

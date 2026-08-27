@@ -2,7 +2,8 @@
 
 import Link from 'next/link';
 import { useEffect, useId, useRef, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { createClientIfConfigured } from '@/lib/supabase/client';
+import { hasSupabaseEnv } from '@/lib/env';
 import { ChevronDown, Lock, PersonOutline } from '@/components/ui/icons';
 import { ButtonLink } from '@/components/ui/button';
 import { cn } from '@/lib/utils/cn';
@@ -25,15 +26,22 @@ const MENU = [
 ];
 
 export function AccountMenu({ iconsOnly = false }: { iconsOnly?: boolean } = {}) {
+  // 환경 설정 여부는 렌더 시점에 이미 안다(빌드 때 인라인된다).
+  // effect에서 setState로 알릴 일이 아니라 초기값이다.
+  const configured = hasSupabaseEnv();
   const [email, setEmail] = useState<string | null>(null);
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(!configured);
   const [open, setOpen] = useState(false);
   const menuId = useId();
   const wrapRef = useRef<HTMLDivElement>(null);
   const firstItemRef = useRef<HTMLAnchorElement>(null);
 
   useEffect(() => {
-    const supabase = createClient();
+    // Supabase 미설정이면 구독할 것이 없다. 여기서 던지면 헤더가 모든 페이지에
+    // 있으므로 사이트 전체 하이드레이션이 죽는다 — 실제로 그렇게 배포가 깨졌다.
+    const supabase = createClientIfConfigured();
+    if (!supabase) return;
+
     let alive = true;
 
     supabase.auth.getSession().then(({ data }) => {
@@ -71,7 +79,7 @@ export function AccountMenu({ iconsOnly = false }: { iconsOnly?: boolean } = {})
   }, [open]);
 
   async function signOut() {
-    await createClient().auth.signOut();
+    await createClientIfConfigured()?.auth.signOut();
     setOpen(false);
   }
 
