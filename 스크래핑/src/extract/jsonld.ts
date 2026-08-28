@@ -202,18 +202,18 @@ export function extractProduct(html: string, expected: 'CAD' | 'KRW'): JsonLdPro
   const priceMinor = variantPrices.length > 0 ? Math.min(...variantPrices) : groupPrice;
 
   /*
-   * 정가 판별.
+   * 정가 판별 — 그룹 offer 만 근거로 삼는다.
    *
    * Coach 는 ProductGroup.offers 에 정가(CA$360)를 두고 개별 variant 에 세일가(CA$180)를 싣는다.
-   * 최저가만 보면 "48% 싸다"가 사실은 특정 컬러웨이 세일이라는 걸 놓친다.
-   * 매입 판단이 달라지므로 정가를 반드시 함께 남긴다.
+   * 최저가만 보면 "48% 싸다"가 특정 컬러웨이 세일이라는 걸 놓치므로 정가를 함께 남긴다.
+   *
+   * 반대로 variant 최고가를 정가로 삼으면 안 된다. Coach 의 일부 페이지는
+   * 스타일코드가 서로 다른 관련 상품 11종을 한 ProductGroup 으로 묶어 두고
+   * (그룹 offer 자체가 없다) 가격이 330~580 으로 제각각인데,
+   * 이걸 최고가 기준으로 보면 없는 세일을 지어내게 된다.
    */
-  const candidates = [groupPrice, ...variantPrices].filter(
-    (p): p is number => typeof p === 'number' && p > 0,
-  );
-  const maxPrice = candidates.length > 0 ? Math.max(...candidates) : null;
   const listPriceMinor =
-    maxPrice !== null && priceMinor !== null && maxPrice > priceMinor ? maxPrice : null;
+    groupPrice !== null && priceMinor !== null && groupPrice > priceMinor ? groupPrice : null;
 
   const currency = groupOffer.currency ?? (variants.length > 0 ? expected : null);
 

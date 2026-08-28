@@ -1,0 +1,12 @@
+# 재고 감시 목록 — 한 줄에 상품 URL 하나. # 뒤는 주석.
+# 복사해서 watchlist.txt 로 쓴다:  cp watchlist.example.txt watchlist.txt
+# 실행:  npm run stock -- --watch
+
+# --- Arc'teryx (캐나다 공식몰) ---
+https://arcteryx.com/ca/en/shop/mens/beta-jacket-0868
+https://arcteryx.com/ca/en/shop/womens/cerium-jacket-0584
+https://arcteryx.com/ca/en/shop/womens/proton-heavyweight-hoody-0588
+
+# --- Coach (캐나다 공식몰) ---
+https://ca.coach.com/en/products/denim-hooded-zip-jacket/CAF56.html
+https://ca.coach.com/en/products/juliet-shoulder-bag-25/CAD75.html

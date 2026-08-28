@@ -12,7 +12,8 @@
     "doctor": "tsx src/cli.ts doctor",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "browsers": "playwright install chromium"
+    "browsers": "playwright install chromium",
+    "stock": "tsx src/cli.ts stock"
   },
   "dependencies": {
     "dotenv": "^17.2.3",

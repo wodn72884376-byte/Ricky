@@ -70,3 +70,59 @@ export function Field({ label, hint, error, required, className, ...props }: Fie
     </div>
   );
 }
+
+type TextAreaProps = {
+  label: string;
+  hint?: ReactNode;
+  error?: string;
+  required?: boolean;
+  className?: string;
+} & Omit<ComponentProps<'textarea'>, 'className' | 'required'>;
+
+/** 긴 입력. 규격은 `Field`와 같고 높이만 다르다 — 두 컨트롤이 달라 보이면 안 된다. */
+export function TextAreaField({ label, hint, error, required, className, ...props }: TextAreaProps) {
+  const id = useId();
+  const hintId = `${id}-hint`;
+  const errorId = `${id}-error`;
+  const invalid = Boolean(error);
+
+  return (
+    <div className={cn('flex flex-col gap-2', className)}>
+      <label htmlFor={id} className="text-meta font-bold text-ink">
+        {label}
+        {required && (
+          <>
+            {' '}
+            <span className="font-normal text-muted-text">(필수)</span>
+          </>
+        )}
+      </label>
+
+      {hint && (
+        <p id={hintId} className="text-meta text-muted-text">
+          {hint}
+        </p>
+      )}
+
+      <textarea
+        id={id}
+        required={required}
+        aria-invalid={invalid || undefined}
+        aria-describedby={cn(hint ? hintId : '', invalid ? errorId : '').trim() || undefined}
+        className={cn(
+          'min-h-40 resize-y rounded-ghost border bg-paper px-4 py-3 text-body leading-relaxed text-ink',
+          'placeholder:text-muted-text',
+          'transition-colors duration-[var(--motion-quick)]',
+          invalid ? 'border-error' : 'border-outline-strong focus:border-ink',
+        )}
+        {...props}
+      />
+
+      {invalid && (
+        <p id={errorId} role="alert" className="text-label text-error">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}

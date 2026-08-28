@@ -33,7 +33,7 @@ const COLUMNS = [
     links: [
       { label: '고객센터', href: '/support' },
       { label: '주문 조회', href: '/orders/lookup' },
-      { label: '1:1 문의', href: '/support' },
+      { label: '1:1 문의', href: '/support#inquiry' },
     ],
   },
   {

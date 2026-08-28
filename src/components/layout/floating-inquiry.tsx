@@ -18,7 +18,7 @@ export function FloatingInquiry({
 }) {
   return (
     <Link
-      href="/support"
+      href="/support#inquiry"
       // TODO(channel): 상담 채널 미정 — 네이버 톡톡 / 카카오채널 / 자사 폼 (BRIEF §9)
       className={cn(
         'fixed right-6 z-[var(--z-floating)]',

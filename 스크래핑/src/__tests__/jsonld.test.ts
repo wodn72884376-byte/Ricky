@@ -127,6 +127,27 @@ describe('extractProduct', () => {
     expect(p?.listPriceMinor).toBeNull();
   });
 
+  it('그룹 offer 가 없으면 variant 가격차를 세일로 지어내지 않는다', () => {
+    /*
+     * 실측(Coach Juliet Shoulder Bag 25): 스타일코드가 다른 관련 상품 11종을
+     * 한 ProductGroup 으로 묶어 두고 그룹 offer 는 아예 없다. 가격은 330~580.
+     * variant 최고가를 정가로 삼으면 없는 43% 세일이 만들어진다.
+     */
+    const html = `<script type="application/ld+json">{
+      "@type":"ProductGroup","name":"Juliet Shoulder Bag 25","productGroupID":"CAD75",
+      "hasVariant":[
+        {"@type":"Product","sku":"CDZ67 B4YMW","color":"Brass/Dark Indigo","size":"medium",
+         "offers":{"@type":"Offer","priceCurrency":"CAD","price":330,
+           "availability":"https://schema.org/OutOfStock"}},
+        {"@type":"Product","sku":"CEM90 B4/HA","color":"Brass/Chalk","size":"medium",
+         "offers":{"@type":"Offer","priceCurrency":"CAD","price":580,
+           "availability":"https://schema.org/InStock"}}
+      ]}</script>`;
+    const p = extractProduct(html, 'CAD');
+    expect(p?.priceMinor).toBe(33000);
+    expect(p?.listPriceMinor).toBeNull();
+  });
+
   it('상품 마크업이 없으면 null', () => {
     expect(extractProduct('<html><body>없음</body></html>', 'CAD')).toBeNull();
   });

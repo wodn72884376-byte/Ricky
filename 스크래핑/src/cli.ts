@@ -6,9 +6,9 @@
  *   npm run catalog -- --brand=아크테릭스 캐나다 카탈로그만
  *   npm run scan    -- --limit=40      전체 파이프라인 → 리포트
  */
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { join } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 
 import { getAdapter } from './adapters/index.ts';
 import { ALL_BRAND_KEYS, BRANDS, resolveBrands } from './config/brands.ts';
@@ -24,6 +24,10 @@ import { runScan } from './pipeline.ts';
 import { allRows, toCsv } from './report/csv.ts';
 import { renderReport } from './report/markdown.ts';
 import { collectBrandSignals } from './signals/collect.ts';
+import { runStockCheck } from './stock/check.ts';
+import { diffStock } from './stock/diff.ts';
+import { renderStockReport, toStockCsv } from './stock/report.ts';
+import type { StockRow } from './stock/types.ts';
 import { naverMode, naverSearch, NaverNotConfiguredError } from './signals/naverClient.ts';
 
 // 프로젝트 경로에 한글이 포함된다 → fileURLToPath (CLAUDE.md 코드 컨벤션)
@@ -37,6 +41,8 @@ type Args = {
   fresh: boolean;
   skipSignals: boolean;
   skipKr: boolean;
+  /** 감시 목록 파일 경로. 있으면 이 URL 들만 조회한다. */
+  watchFile: string | null;
 };
 
 function parseArgs(argv: string[]): Args {
@@ -62,10 +68,13 @@ function parseArgs(argv: string[]): Args {
     fresh: flags.get('fresh') === 'true',
     skipSignals: flags.get('no-signals') === 'true',
     skipKr: flags.get('no-kr') === 'true',
+    watchFile: flags.get('watch') === 'true' ? 'watchlist.txt' : (flags.get('watch') ?? null),
   };
 }
 
-const stamp = () => new Date().toISOString().slice(0, 16).replace(/[:T]/g, '').replace(/-/g, '');
+// 초까지 넣는다. 분 단위면 같은 분에 두 번 돌릴 때 직전 스냅샷을 덮어써
+// 변화 이력이 사라진다(재고 조회는 짧은 간격으로 반복 실행되는 작업이다).
+const stamp = () => new Date().toISOString().slice(0, 19).replace(/[:T-]/g, '');
 
 // ---------------------------------------------------------------------------
 
@@ -258,6 +267,93 @@ async function catalogOnly(args: Args): Promise<void> {
   }
 }
 
+/**
+ * 재고 조회 (PROJECT.md §6).
+ * 직전 스냅샷과 대조해 품절·재입고·가격변동 이벤트까지 낸다.
+ */
+async function stock(args: Args): Promise<void> {
+  const startedAt = new Date().toISOString();
+  const t0 = Date.now();
+
+  let watchUrls: string[] | undefined;
+  if (args.watchFile) {
+    const path = isAbsolute(args.watchFile) ? args.watchFile : join(process.cwd(), args.watchFile);
+    try {
+      watchUrls = (await readFile(path, 'utf8'))
+        .split(/\r?\n/)
+        .map((l) => l.replace(/#.*$/, '').trim())
+        .filter((l) => l.startsWith('http'));
+      log.info(`감시 목록 ${watchUrls.length}건 (${args.watchFile})`);
+    } catch {
+      log.error(`감시 목록을 읽지 못했다: ${path}`);
+      process.exitCode = 1;
+      return;
+    }
+    if (watchUrls.length === 0) {
+      log.error('감시 목록이 비어 있다.');
+      process.exitCode = 1;
+      return;
+    }
+  }
+
+  const results = await runStockCheck({
+    brands: args.brands,
+    limit: args.limit,
+    fresh: args.fresh,
+    ...(watchUrls ? { watchUrls } : {}),
+  });
+
+  const rows: StockRow[] = results.flatMap((r) => r.rows);
+
+  // 직전 스냅샷과 대조. 수집 실패분은 양쪽 모두에서 빠지므로 오탐이 나지 않는다.
+  await mkdir(DATA_DIR, { recursive: true });
+  const previous = await loadLatestSnapshot();
+  const events = previous ? diffStock(previous.rows, rows) : [];
+  if (previous) log.info(`이전 스냅샷 ${previous.label} 대비 변화 ${events.length}건`);
+
+  const tag = stamp();
+  const md = renderStockReport(results, events, {
+    startedAt,
+    durationMs: Date.now() - t0,
+    comparedWith: previous?.label ?? null,
+  });
+
+  const mdPath = join(DATA_DIR, `재고-${tag}.md`);
+  const csvPath = join(DATA_DIR, `재고-${tag}.csv`);
+  const jsonPath = join(DATA_DIR, `재고-${tag}.json`);
+
+  await writeFile(mdPath, md, 'utf8');
+  await writeFile(csvPath, toStockCsv(rows), 'utf8');
+  await writeFile(
+    jsonPath,
+    JSON.stringify({ meta: { startedAt, tag }, results, events, rows }, null, 2),
+    'utf8',
+  );
+
+  console.log();
+  log.ok(`리포트  ${mdPath}`);
+  log.ok(`CSV     ${csvPath}`);
+  log.ok(`스냅샷  ${jsonPath}`);
+}
+
+/** data/ 에서 가장 최근 재고 스냅샷을 읽는다. 다음 실행의 대조 기준이 된다. */
+async function loadLatestSnapshot(): Promise<{ label: string; rows: StockRow[] } | null> {
+  try {
+    const files = (await readdir(DATA_DIR))
+      .filter((f) => f.startsWith('재고-') && f.endsWith('.json'))
+      .sort();
+    const latest = files.at(-1);
+    if (!latest) return null;
+    const parsed = JSON.parse(await readFile(join(DATA_DIR, latest), 'utf8')) as {
+      rows?: StockRow[];
+    };
+    if (!Array.isArray(parsed.rows) || parsed.rows.length === 0) return null;
+    return { label: latest.replace(/^재고-|\.json$/g, ''), rows: parsed.rows };
+  } catch {
+    return null;
+  }
+}
+
 async function scan(args: Args): Promise<void> {
   const result = await runScan({
     brands: args.brands,
@@ -312,6 +408,9 @@ RICKY 소싱 리서치 파이프라인
 
 사용법
   npm run doctor                     엔드포인트 생존 확인 (먼저 실행할 것)
+  npm run stock -- --brand=arcteryx,coach --limit=10
+                                     캐나다 공식몰 재고 조회 (색상 × 사이즈)
+  npm run stock -- --watch           watchlist.txt 의 URL 만 조회 (운영용)
   npm run signals -- --brand=coach   한국 인기도 신호만 수집
   npm run catalog -- --brand=arcteryx --new
                                      캐나다 카탈로그만 수집
@@ -325,6 +424,7 @@ RICKY 소싱 리서치 파이프라인
   --fresh               캐시 무시하고 새로 수집
   --no-signals          네이버 인기도 신호 생략
   --no-kr               한국 가격 수집 생략 (CA 카탈로그만)
+  --watch[=파일]        재고 조회 대상을 URL 목록 파일로 지정 (기본 watchlist.txt)
 
 준비
   1) npm install
@@ -348,6 +448,9 @@ async function main(): Promise<void> {
         break;
       case 'catalog':
         await catalogOnly(args);
+        break;
+      case 'stock':
+        await stock(args);
         break;
       case 'scan':
       case 'compare':

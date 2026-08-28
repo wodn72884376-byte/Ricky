@@ -38,7 +38,7 @@ export function ProductDisclosureTable({ product }: { product: CatalogProduct })
       <dl className="mt-5 border-t border-outline">
         {rows.map((row) => (
           <div key={row.label} className="flex gap-4 border-b border-outline py-3 text-util">
-            <dt className="w-32 shrink-0 text-muted-text sm:w-44">{row.label}</dt>
+            <dt className="w-32 shrink-0 text-muted-text md:w-44">{row.label}</dt>
             <dd className={row.value ? 'text-ink' : 'text-muted-text'}>
               {row.value ?? (
                 <>
