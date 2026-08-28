@@ -16,7 +16,10 @@ type Props = {
   priceKrw: number;
   /** 세일 전 가격. 있으면 할인율 배지가 붙는다 */
   compareAtKrw?: number;
-  /** 결제 전에 반드시 보여준다(DDU). 없으면 캡션 행이 비활성 문구로 대체된다 */
+  /**
+   * 세액 각주. 넘기지 않으면 캡션 행 자체가 없다 —
+   * 목록 카드는 넘기지 않고, 상세·장바구니·결제는 넘긴다 (DDU 고지는 그쪽에서 한다).
+   */
   customs?: CustomsEstimate;
   /** 상세 페이지는 'lg'. 카드는 기본값 */
   size?: 'card' | 'lg';
@@ -79,7 +82,7 @@ export function PriceBlock({
         )}
       </div>
 
-      <CustomsCaption customs={customs} />
+      {customs && <CustomsCaption customs={customs} />}
     </div>
   );
 }

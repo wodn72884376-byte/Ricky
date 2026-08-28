@@ -87,9 +87,19 @@ describe('diffStock', () => {
     expect(e[0]?.size).toBe('XL');
   });
 
-  it('사라진 variant 는 removed', () => {
-    const e = diffStock([row()], [], NOW);
+  it('조회한 상품에서 빠진 variant 는 removed', () => {
+    // 같은 상품을 다시 조회했는데 S 가 없어졌다 → 편성 제외/단종 의심
+    const s = row({ sku: 'CAF56 KHA  S', size: { declared: 'S', code: 'S', width: null, label: 'S' } });
+    const e = diffStock([row(), s], [row()], NOW);
+    expect(e).toHaveLength(1);
     expect(e[0]?.type).toBe('removed');
+    expect(e[0]?.size).toBe('S');
+  });
+
+  it('아무것도 조회하지 않은 실행은 이벤트를 내지 않는다', () => {
+    // current 가 비었다는 건 "전부 사라졌다"가 아니라 "아무것도 안 봤다"는 뜻이다.
+    // 수집이 통째로 실패한 날 단종 이벤트가 쏟아지면 안 된다.
+    expect(diffStock([row()], [], NOW)).toEqual([]);
   });
 
   it('재고 상태와 가격이 함께 바뀌면 이벤트 두 개가 난다', () => {
@@ -138,5 +148,44 @@ describe('sortEvents', () => {
       NOW,
     );
     expect(sortEvents(events)[0]?.type).toBe('oos');
+  });
+});
+
+describe('diffStock — 조회 범위', () => {
+  const other = (): StockRow => ({
+    ...row(),
+    productUrl: 'https://arcteryx.com/ca/en/shop/mens/beta-jacket-0868',
+    productName: "Beta Jacket Men's",
+    brand: 'arcteryx',
+    sku: 'X000010868008',
+    styleCode: null,
+  });
+
+  it('이번에 조회하지 않은 상품은 사라진 것으로 보지 않는다', () => {
+    /*
+     * 실측 사고: 북마클릿으로 폴로 70개를 수집했는데 직전 스냅샷이
+     * 아크테릭스·코치 99개라, 안 본 상품이 전부 '사라짐'으로 잡혀
+     * 가짜 이벤트 169건이 났다. 안 본 상품은 사라진 게 아니다.
+     */
+    const events = diffStock([other()], [row()], NOW);
+    expect(events.filter((e) => e.type === 'removed')).toHaveLength(0);
+  });
+
+  it('조회한 상품 안에서 사라진 variant 는 여전히 잡는다', () => {
+    const s = row({ sku: 'CAF56 KHA  S', size: { declared: 'S', code: 'S', width: null, label: 'S' } });
+    const events = diffStock([row(), s, other()], [row()], NOW);
+    const removed = events.filter((e) => e.type === 'removed');
+    expect(removed).toHaveLength(1);
+    expect(removed[0]?.size).toBe('S');
+  });
+
+  it('다른 상품이 섞여 있어도 진짜 변화는 정확히 잡는다', () => {
+    const events = diffStock(
+      [row(), other()],
+      [row({ availability: 'out_of_stock' })],
+      NOW,
+    );
+    expect(events).toHaveLength(1);
+    expect(events[0]?.type).toBe('oos');
   });
 });

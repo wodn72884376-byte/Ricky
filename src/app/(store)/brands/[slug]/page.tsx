@@ -6,8 +6,8 @@ import { ProductCard } from '@/components/store/product-card';
 import { LinkedFilterBar } from '@/components/store/linked-filter-bar';
 import { EmptyResult, EmptyState } from '@/components/ui/states';
 import { ButtonLink } from '@/components/ui/button';
-import { BRAND_COLUMNS } from '@/lib/nav';
-import { byBrand, categoryTabs, toCardProps } from '@/lib/catalog';
+import { BRAND_COLUMNS, type Gender } from '@/lib/nav';
+import { byBrand, categoryTabs, filterGender, toCardProps } from '@/lib/catalog';
 import type { SortKey } from '@/components/store/product-filter-bar';
 
 /**
@@ -87,10 +87,12 @@ export default async function BrandPage({ params, searchParams }: PageProps<'/br
   const sp = await searchParams;
   const category = typeof sp.category === 'string' ? sp.category : null;
   const sort = (typeof sp.sort === 'string' ? sp.sort : 'recommended') as SortKey;
+  // 메가 메뉴가 `?gender=`를 달고 들어온다. unisex는 양쪽에 모두 나온다.
+  const gender: Gender | null = sp.gender === 'men' || sp.gender === 'women' ? sp.gender : null;
 
   const hero = HERO[slug];
   const blurb = BLURB[slug];
-  const brandProducts = byBrand(slug);
+  const brandProducts = filterGender(byBrand(slug), gender);
   const inBrand = brandProducts.map(toCardProps);
   const filtered = category ? inBrand.filter((p) => p.category === category) : inBrand;
   const visible = sortProducts(filtered, sort);
@@ -110,6 +112,11 @@ export default async function BrandPage({ params, searchParams }: PageProps<'/br
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 className="text-headline font-bold">{brand.label}</h1>
+            {gender && (
+              <p className="mt-1 text-meta text-muted-text">
+                {gender === 'men' ? "Men's" : "Women's"}
+              </p>
+            )}
             {blurb && <p className="mt-2 max-w-[var(--measure-prose)] text-body text-ink">{blurb}</p>}
           </div>
           {brandProducts.length > 0 && (
@@ -128,7 +135,11 @@ export default async function BrandPage({ params, searchParams }: PageProps<'/br
             className="border-t border-outline"
             /* 라틴 표기 뒤 조사는 한글 발음을 따라가므로 라벨에 조사를 직접 붙이지 않는다 —
                `Nobis은`이 되지 않도록 항상 `상품은`을 사이에 둔다 */
-            message={`${brand.label} 상품은 아직 준비하고 있어요. 매입이 시작되면 여기에 올라와요.`}
+            message={
+              gender
+                ? `${brand.label} ${gender === 'men' ? "Men's" : "Women's"} 상품은 아직 준비하고 있어요.`
+                : `${brand.label} 상품은 아직 준비하고 있어요. 매입이 시작되면 여기에 올라와요.`
+            }
             action={
               <ButtonLink href="/brands/arcteryx" chevron>
                 지금 있는 상품 보기

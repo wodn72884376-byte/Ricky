@@ -81,26 +81,26 @@ export default function ComponentsPreview() {
         </div>
       </Row>
 
-      <Row title="ProductCard" note="사진 → 상품명 → 가격 → 관세 각주. 상태 3종">
+      <Row title="ProductCard" note="사진 → 상품명 → 가격 → 컬러칩. 상태 3종">
         <div className="grid grid-cols-2 gap-x-4 gap-y-10 md:grid-cols-3 lg:grid-cols-4">
           <ProductCard
             href="#" imageUrl={PLACEHOLDER} imageAlt="눈 덮인 능선에 선 사람이 입은 검정 하드셸 재킷"
-            brand="Arc'teryx" name="Beta LT 자켓 블랙" priceKrw={742_000} customs={TAXED}
+            brand="Arc'teryx" name="Beta LT 자켓" priceKrw={742_000} colors={[{ label: '블랙', hex: '#141414' }, { label: '화이트', hex: '#ffffff' }]}
           />
           <ProductCard
             href="#" imageUrl={PLACEHOLDER} imageAlt="아침 스튜디오에서 촬영한 검정 스쿠바 후디"
             brand="lululemon" name="Scuba 오버사이즈 후디" priceKrw={121_000}
-            compareAtKrw={178_000} customs={DUTY_FREE}
+            compareAtKrw={178_000} colors={[{ label: '블랙', hex: '#141414' }, { label: '화이트', hex: '#ffffff' }]}
           />
           <ProductCard
             href="#" imageUrl={PLACEHOLDER} imageAlt="나무 카운터 위에 놓인 갈색 가죽 가방"
-            brand="Coach" name="Tabby 26 브라운" priceKrw={398_000}
-            customs={TAXED} availability="checking"
+            brand="Coach" name="Tabby 26" priceKrw={398_000}
+            colors={[{ label: '브라운', hex: '#6f4a33' }]} availability="checking"
           />
           <ProductCard
             href="#" imageUrl={PLACEHOLDER} imageAlt="회색 니트 비니 정면"
             brand="Arc'teryx" name="Bird Head Toque" priceKrw={62_000}
-            customs={DUTY_FREE} availability="sold_out"
+            colors={[{ label: '그레이', hex: '#9a9a9a' }]} availability="sold_out"
           />
         </div>
       </Row>

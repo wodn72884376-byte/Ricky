@@ -20,7 +20,7 @@ const COLUMNS = [
         label: brandShort(brand),
         href: `/brands/${brand.slug}`,
       })),
-      { label: '이번 주 입고', href: '/arrivals' },
+      { label: '전체 상품', href: '/shop' },
     ],
   },
   {

@@ -88,7 +88,8 @@ export function ButtonLink({
   ...props
 }: BaseProps & Omit<ComponentProps<typeof Link>, 'children' | 'className'>) {
   return (
-    <Link className={classes({ variant, size, children, className })} {...props}>
+    /* data-pressable — 링크지만 버튼처럼 눌린다. 누름 모션은 globals.css가 준다 */
+    <Link data-pressable className={classes({ variant, size, children, className })} {...props}>
       {children}
       {chevron && <ChevronRight />}
     </Link>

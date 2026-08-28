@@ -13,7 +13,10 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "browsers": "playwright install chromium",
-    "stock": "tsx src/cli.ts stock"
+    "stock": "tsx src/cli.ts stock",
+    "bookmarklet": "tsx src/cli.ts bookmarklet",
+    "stock:all": "tsx src/cli.ts stock --all",
+    "stock:catalog": "tsx src/cli.ts stock --all --catalog"
   },
   "dependencies": {
     "dotenv": "^17.2.3",

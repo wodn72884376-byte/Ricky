@@ -1,5 +1,6 @@
 import { BRAND_COLUMNS } from '@/lib/nav';
-import { ProductForm } from './product-form';
+import { ProductForm } from '../product-form';
+import { createProduct } from './actions';
 
 export const metadata = { title: '상품 등록 — RICKY 운영' };
 
@@ -12,5 +13,5 @@ export const metadata = { title: '상품 등록 — RICKY 운영' };
  */
 export default function NewProductPage() {
   const brands = BRAND_COLUMNS.map((b) => ({ value: b.slug, label: b.label }));
-  return <ProductForm brands={brands} />;
+  return <ProductForm mode="create" brands={brands} action={createProduct} />;
 }

@@ -20,7 +20,7 @@ export default function SupportPage() {
             { term: '상담 시간', desc: '평일 10:00 – 15:00 (한국 시간)' },
             { term: '휴무', desc: '주말과 캐나다·한국 공휴일' },
             { term: '답변', desc: '접수 후 1영업일 이내' },
-            { term: '출고', desc: '주 3회 — 캘거리 출고 후 영업일 기준 4~10일' },
+            { term: '출고', desc: '주 3회 — 캘거리 출고 후 영업일 기준 7~14일' },
           ]}
         />
         <DocNote>

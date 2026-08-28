@@ -93,7 +93,7 @@ export default async function AdminHome() {
 
       <section className="mt-12">
         <h2 className="text-editorial font-bold">현황</h2>
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard label="등록 상품" value={String(counts.products)} unit="개" href="/admin/products" />
           <StatCard label="주문" value={String(counts.orders)} unit="건" href="/admin/orders" />
           <StatCard label="모니터링 대상" value={String(counts.listings)} unit="개" href="/admin/monitoring" />

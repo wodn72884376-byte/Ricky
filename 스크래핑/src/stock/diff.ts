@@ -53,7 +53,20 @@ export function diffStock(
   current: StockRow[],
   now = new Date().toISOString(),
 ): StockEvent[] {
-  const prev = new Map(previous.map((r) => [variantKey(r), r]));
+  /*
+   * 이번에 조회한 상품만 비교한다.
+   *
+   * 조회 대상이 매번 같지 않다 — 자동 수집은 아크테릭스·코치, 북마클릿 수집은 폴로처럼
+   * 서로 다른 묶음이 번갈아 들어온다. 전체를 맞대면 "이번에 안 본 상품"이 전부
+   * '사라짐'으로, 새 상품이 전부 '신규'로 잡혀 진짜 변화가 노이즈에 묻힌다.
+   * (실측: 폴로 70개를 아크테릭스·코치 99개와 맞대 가짜 이벤트 169건이 났다.)
+   *
+   * 안 본 상품은 사라진 게 아니라 안 본 것이다.
+   */
+  const checkedProducts = new Set(current.map((r) => r.productUrl));
+  const scopedPrevious = previous.filter((r) => checkedProducts.has(r.productUrl));
+
+  const prev = new Map(scopedPrevious.map((r) => [variantKey(r), r]));
   const cur = new Map(current.map((r) => [variantKey(r), r]));
   const events: StockEvent[] = [];
 

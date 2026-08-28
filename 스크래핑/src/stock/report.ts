@@ -88,11 +88,22 @@ function renderMatrix(rows: StockRow[]): string[] {
   out.push(`|---|${sizes.map(() => ':--:').join('|')}|`);
 
   for (const c of colours) {
-    const cells = sizes.map((s) => {
-      const r = rows.find((x) => (x.colour ?? '(색상 없음)') === c && x.size.label === s);
-      // 해당 조합이 애초에 편성되지 않은 경우와 품절은 다르다.
-      return r ? (MARK[r.availability] ?? '?') : '·';
-    });
+    const mine = rows.filter((x) => (x.colour ?? '(색상 없음)') === c);
+
+    /*
+     * 사이즈 정보가 아예 없는 색상은 "미편성"이 아니라 "미확인"이다.
+     * 랄프로렌은 선택된 색상의 사이즈만 싣는다 — 나머지를 미편성으로 그리면
+     * 재고가 멀쩡한 색상이 "살 수 없음"으로 보인다.
+     */
+    const known = mine.some((x) => x.size.label !== '-');
+    const cells = known
+      ? sizes.map((s) => {
+          const r = mine.find((x) => x.size.label === s);
+          // 해당 조합이 애초에 편성되지 않은 경우와 품절은 다르다.
+          return r ? (MARK[r.availability] ?? '?') : '·';
+        })
+      : sizes.map(() => '?');
+
     out.push(`| ${c} | ${cells.join(' | ')} |`);
   }
   return out;
@@ -148,7 +159,12 @@ export function renderStockReport(
       (failed.length ? ` · **수집 실패 ${failed.length}건**` : ''),
   );
   out.push('');
-  out.push('기호: ● 재고 · ◐ 임박 · ○ 품절 · ✕ 단종 · · 미편성');
+  out.push('기호: ● 재고 · ◐ 임박 · ○ 품절 · ✕ 단종 · **? 미확인** · · 미편성');
+  out.push('');
+  out.push(
+    '`?` 는 그 색상의 사이즈별 재고를 못 받았다는 뜻이지 재고가 없다는 뜻이 아니다. ' +
+      '사이트가 선택된 색상의 사이즈만 보여 주기 때문이며, 그 색상을 고른 뒤 재고수집을 누르면 채워진다.',
+  );
   out.push('');
 
   // -------------------------------------------------------------------------

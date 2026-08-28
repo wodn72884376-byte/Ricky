@@ -37,7 +37,7 @@ export default function ShippingPolicyPage() {
     <DocShell
       eyebrow="SHIPPING"
       title="배송 안내"
-      lede="캘거리에서 주 3회 출고해요. 출고 후 한국 자택까지는 영업일 기준 4~10일 걸려요."
+      lede="캘거리에서 주 3회 출고해요. 출고 후 한국 자택까지는 영업일 기준 7~14일 걸려요."
     >
       <DocSection id="schedule" title="출고와 소요 기간">
         <DocList
@@ -52,7 +52,7 @@ export default function ShippingPolicyPage() {
               <strong className="font-bold">주문매입 상품</strong>은 현지 매장에서 매입한 뒤 출고해요. 매입에 1~3
               영업일이 더 걸려요.
             </>,
-            '캘거리 출고 후 인천 도착·통관·국내 배송까지 영업일 기준 4~10일이에요.',
+            '캘거리 출고 후 인천 도착·통관·국내 배송까지 영업일 기준 7~14일이에요.',
             '통관 상황이나 항공 스케줄에 따라 늦어질 수 있고, 그런 경우에는 개별로 연락드려요.',
           ]}
         />
@@ -74,13 +74,19 @@ export default function ShippingPolicyPage() {
           되고, 운임은 12kg 기준으로 나와요. 반대로 지갑처럼 작고 무거운 물건은 실무게로 계산돼요.
         </P>
         <DocNote>
-          그래서 RICKY는 상품마다 무게와 치수를 등록해요. 상품 페이지와 장바구니에서 보시는 배송비는 그 값으로 미리
-          계산한 금액이에요.
+          그래서 RICKY는 상품마다 무게와 치수를 재서 배송비를 미리 정해 둬요. 결제 단계에서 값이 바뀌지 않도록
+          상품 페이지에 그대로 적어 둡니다.
         </DocNote>
       </DocSection>
 
       <DocSection id="rates" title="배송 요금표">
-        <P>500g 단위로 올려서 계산해요. 1.2kg이면 1.5kg 구간을 적용해요.</P>
+        <P>
+          <strong className="font-bold">배송비는 상품마다 정해져 있어요.</strong> 상품 페이지의 가격 아래에 적힌 금액이
+          그 상품 한 점을 보낼 때 드는 배송비예요. 여러 점을 주문하시면 각 상품의 배송비를 더해요.
+        </P>
+        <P>
+          아래는 그 금액을 정할 때 쓰는 기준표예요. 500g 단위로 올려서 봐요 — 1.2kg이면 1.5kg 구간이에요.
+        </P>
         <div className="grid gap-x-10 gap-y-8 md:grid-cols-2">
           <DocTable head={['적용 무게', '배송비']} rows={rateRows(STEPS.slice(0, 10))} />
           <DocTable head={['적용 무게', '배송비']} rows={rateRows(STEPS.slice(10))} />
@@ -92,7 +98,6 @@ export default function ShippingPolicyPage() {
               더해져요.
             </>,
             '10kg을 넘는 주문은 별도로 안내드려요. 결제 전에 미리 알려드릴게요.',
-            '여러 상품을 함께 주문하시면 하나로 합쳐 포장하고, 합친 무게로 한 번만 계산해요.',
           ]}
         />
       </DocSection>

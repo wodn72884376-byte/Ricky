@@ -126,6 +126,10 @@
   --motion-stagger: 100ms;
   --motion-skeleton-pulse: 1000ms;
   --motion-toast-dwell: 3000ms;   /* dwell은 모션이 아니다 — 아래에서 붕괴시키지 않는다 */
+  /* 갤러리 확대 — 표준(250ms)보다 훨씬 느리다. 돋보기는 튀는 물건이 아니다 */
+  --motion-gallery-zoom: 900ms;
+  /* 카드 컷 전환 — 두 사진이 겹치는 시간. 짧으면 '깜빡'이고 길어야 '넘어간다'로 읽힌다 */
+  --motion-card-cut: 600ms;
   --scale-image-hover: 1.04;
 
   /* Z-index — §5. Tailwind에 z 네임스페이스 확장이 없어 커스텀 속성으로 둔다.
@@ -150,6 +154,8 @@
     --motion-page: 0ms;
     --motion-stagger: 0ms;
     --motion-skeleton-pulse: 0ms;
+    --motion-gallery-zoom: 0ms;
+    --motion-card-cut: 0ms;
     --scale-image-hover: 1;
     /* --motion-toast-dwell은 유지한다. 읽을 시간을 뺏지 않는다. */
   }
@@ -222,6 +228,14 @@ a {
   font-variant-numeric: tabular-nums;
 }
 
+/* 확대는 모션이지 정보가 아니다. 줄이도록 설정했으면 아예 하지 않는다 (§15-6) —
+   0ms로 두면 즉시 튀어서 오히려 더 급하게 읽힌다. */
+@media (prefers-reduced-motion: reduce) {
+  .cursor-zoom-ricky img:hover {
+    transform: none !important;
+  }
+}
+
 /* §14 Skeleton — 1.0s 페이드 펄스. 시머(그라디언트 스윕)를 쓰지 않는다. */
 @keyframes skeleton-pulse {
   0%, 100% { opacity: 1; }
@@ -252,4 +266,65 @@ a {
 }
 :where(p) {
   text-wrap: pretty;
+}
+
+/*
+  누를 수 있는 것은 손가락 커서를 쓴다.
+  Tailwind v4는 `button`의 기본 커서를 브라우저 기본값(`default`)으로 되돌렸다 —
+  버튼처럼 생겼는데 커서가 반응하지 않으면 눌리는 줄 모른다.
+  `<a>`는 브라우저가 이미 pointer를 준다.
+*/
+:where(button, summary, [role='button'], label[for]):not(:disabled):not([aria-disabled='true']) {
+  cursor: pointer;
+}
+:where(button, [role='button']):disabled,
+:where(button, [role='button'])[aria-disabled='true'] {
+  cursor: not-allowed;
+}
+
+/*
+  누름 반응 (§15). 색이 아니라 **깊이 없는 축소**로 표현한다 —
+  이 브랜드는 그림자를 애니메이션하지 않으므로, 눌림은 1.5% 줄어드는 것으로만 알린다.
+  transform이라 레이아웃을 건드리지 않고, 지면의 평평함도 그대로다.
+*/
+:where(button, [role='button'], a[data-pressable]) {
+  transition: transform var(--motion-quick) var(--ease-out), background-color var(--motion-quick) var(--ease-out), border-color var(--motion-quick) var(--ease-out), color var(--motion-quick) var(--ease-out);
+}
+:where(button, [role='button'], a[data-pressable]):not(:disabled):not([aria-disabled='true']):active {
+  transform: scale(0.985);
+}
+@media (prefers-reduced-motion: reduce) {
+  :where(button, [role='button'], a[data-pressable]):active {
+    transform: none;
+  }
+}
+
+/*
+  갤러리 확대 커서 — 동그라미 안에 +.
+  브라우저 기본 `zoom-in`은 OS마다 모양이 달라서 이 지면과 어긋난다.
+  선 두께 1.5는 셰브런·계정 아이콘과 같다 (DESIGN.md §4).
+  hotspot은 원의 중심(14 14)에 둔다 — 커서 끝이 아니라 원 가운데가 가리키는 지점이다.
+*/
+.cursor-zoom-ricky {
+  cursor: url("data:image/svg+xml;utf8,\
+<svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'>\
+<circle cx='14' cy='14' r='12' fill='rgba(255,255,255,0.9)' stroke='%23000000' stroke-width='1.5'/>\
+<path d='M14 9v10M9 14h10' stroke='%23000000' stroke-width='1.5' stroke-linecap='round'/>\
+</svg>") 14 14, zoom-in;
+}
+
+/*
+  메가 패널 등장 — 8px 아래에서 올라오며 페이드인.
+  성별을 바꿀 때 내용만 조용히 갈리면 바뀐 줄 모른다. 이 모션이 "다른 목록"임을 알린다.
+  §15-2의 타일 등장과 같은 문법이되 거리는 절반이다 — 드롭다운은 편집 타일이 아니다.
+*/
+@keyframes panel-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-panel-in {
+  animation: panel-in var(--motion-standard) var(--ease-out) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-panel-in { animation: none; }
 }

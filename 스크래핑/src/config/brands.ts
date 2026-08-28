@@ -338,11 +338,13 @@ export const BRANDS: Record<BrandKey, BrandConfig> = {
       // PerimeterX 캡차(307 px-captcha). 선언된 사이트맵(/index)도 같은 벽에 막힌다.
       transport: 'browser',
       sitemapUrls: ['https://www.ralphlauren.ca/index'],
-      isProductUrl: (u) => /-\d{3,6}\.html/.test(u) || /-prod\d+\.html/.test(u),
+      // 실측 URL: /men-clothing-sweaters/cable-knit-cotton-sweater/515061.html
+      // 슬러그와 코드 사이가 대시가 아니라 슬래시인 경우가 있다.
+      isProductUrl: (u) => /[-/]\d{3,12}\.html/.test(u) || /-prod\d+\.html/.test(u),
       // robots.txt 가 `*/search*` 를 금지한다 → 검색 경로를 쓰지 않는다.
       searchUrl: undefined,
       pdpWaitSelector: 'script[type="application/ld+json"]',
-      productCodeFromUrl: (u) => u.match(/-(\d{3,6})\.html/)?.[1] ?? null,
+      productCodeFromUrl: (u) => u.match(/[-/](\d{3,12})\.html/)?.[1] ?? null,
       discoveryNote: 'PerimeterX 캡차. robots.txt 가 검색 경로도 금지한다.',
     },
     kr: {
@@ -351,9 +353,9 @@ export const BRANDS: Record<BrandKey, BrandConfig> = {
       transport: 'http',
       sitemapUrls: ['https://www.ralphlauren.co.kr/sitemap_index.xml'],
       // /{slug}-{ID}.html — 예: /custom-slim-fit-pique-polo-shirt-82432.html
-      isProductUrl: (u) => /-\d{3,6}\.html/.test(u),
+      isProductUrl: (u) => /[-/]\d{3,12}\.html/.test(u),
       searchUrl: undefined, // CA 와 같은 robots 규칙
-      productCodeFromUrl: (u) => u.match(/-(\d{3,6})\.html/)?.[1] ?? null,
+      productCodeFromUrl: (u) => u.match(/[-/](\d{3,12})\.html/)?.[1] ?? null,
     },
     naverSeeds: [
       '폴로 랄프로렌 셔츠',

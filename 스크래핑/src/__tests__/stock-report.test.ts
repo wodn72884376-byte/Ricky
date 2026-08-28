@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderStockReport, toStockCsv } from '../stock/report.ts';
+import { renderStockHtml } from '../stock/html.ts';
 import type { ProductStock, StockRow } from '../stock/types.ts';
 
 const row = (over: Partial<StockRow> = {}): StockRow => ({
@@ -129,5 +130,75 @@ describe('toStockCsv', () => {
   it('쉼표가 든 색상명을 따옴표로 감싼다', () => {
     const csv = toStockCsv([row({ colour: 'Brass, Poppy' })]);
     expect(csv).toContain('"Brass, Poppy"');
+  });
+});
+
+describe('renderStockHtml — 미확인 색상', () => {
+  /*
+   * 실측 사고(랄프로렌 625239): 11색 중 Polo Black 만 사이즈가 실려 있고
+   * 나머지 10색은 색상 정보만 왔는데, 리포트가 이를 미편성(·)으로 그려
+   * 재고가 멀쩡한 색상이 "살 수 없음"으로 보였다.
+   */
+  const sized = (colour: string, label: string, availability: StockRow['availability'] = 'in_stock') =>
+    row({
+      colour,
+      availability,
+      size: { declared: label, code: label, width: null, label },
+    });
+
+  const colourOnly = (colour: string) =>
+    row({ colour, size: { declared: null, code: null, width: null, label: '-' } });
+
+  it('사이즈를 못 받은 색상은 미편성이 아니라 미확인으로 그린다', () => {
+    const rows = [sized('Polo Black', 'M'), sized('Polo Black', 'L'), colourOnly('Hunter Navy')];
+    const md = renderStockHtml([product(rows)], [], META);
+    expect(md).toContain('확인되지 않았다');
+    // 미확인 색상 줄은 ? 로 채운다
+    expect(md).toMatch(/Hunter Navy<\/td>(<td class="m unk"[^>]*>\?<\/td>)+/);
+  });
+
+  it('사이즈를 받은 색상은 실제 상태 그대로 그린다', () => {
+    const rows = [
+      sized('Polo Black', 'M'),
+      sized('Polo Black', 'L', 'out_of_stock'),
+      colourOnly('Hunter Navy'),
+    ];
+    const html = renderStockHtml([product(rows)], [], META);
+
+    // Polo Black 줄은 재고(●)와 품절(○)이 그대로 남아야 한다
+    const rowHtml = html.match(/Polo Black<\/td>(.*?)<\/tr>/s)?.[1] ?? '';
+    expect(rowHtml).toContain('>●<');
+    expect(rowHtml).toContain('>○<');
+    expect(rowHtml).not.toContain('>?<');
+  });
+
+  it('미확인 색상 수를 상품 헤더에 알린다', () => {
+    const rows = [sized('Polo Black', 'M'), colourOnly('A'), colourOnly('B')];
+    const md = renderStockHtml([product(rows)], [], META);
+    expect(md).toContain('사이즈 미확인 2색');
+  });
+
+  it('사이즈를 못 받은 색상을 재고로 세지 않는다', () => {
+    /*
+     * 실측 사고(638616): 16색 중 1색만 사이즈가 실려 왔는데, 랄프로렌이 나머지 15색의
+     * 색상 전용 행에도 InStock 을 적어 보내 헤더가 "재고 24/24" 로 찍혔다.
+     * 확인한 적 없는 것을 재고로 세면 안 된다 — 없는 재고를 파는 길이다.
+     */
+    const rows = [
+      sized('Preppy Green', 'M'),
+      sized('Preppy Green', 'L'),
+      ...['Cream', 'White', 'Hunter Navy'].map(colourOnly),
+    ];
+    const html = renderStockHtml([product(rows)], [], META);
+    expect(html).toContain('재고 2/2');
+    expect(html).not.toContain('재고 5/5');
+    expect(html).toContain('미확인 3색');
+  });
+
+  it('사이즈 축이 없는 상품(가방)은 미확인으로 보지 않는다', () => {
+    // 전 색상이 사이즈 없이 오는 게 정상인 품목이다
+    const rows = [colourOnly('Brass/Black'), colourOnly('Brass/Maple')];
+    const md = renderStockHtml([product(rows)], [], META);
+    expect(md).not.toContain('사이즈 미확인');
   });
 });

@@ -55,7 +55,7 @@
 | `/policy/terms` | 이용약관. **국제 배송 파손·분실 1차 책임 조항 필수** (PROJECT.md §3.6) |
 | `/policy/privacy` | 개인정보처리방침. PCCC 취급 명시 |
 | `/policy/returns` | 교환·반품·환불, 청약철회 |
-| `/policy/shipping` | 배송 안내. 주 3회 출고, 영업일 4~10일 |
+| `/policy/shipping` | 배송 안내. 주 3회 출고, 영업일 7~14일 |
 
 > 이 네 장은 소비자 대면 문구 중 유일하게 `~합니다` 종결을 허용한다 (DESIGN.md §10).
 

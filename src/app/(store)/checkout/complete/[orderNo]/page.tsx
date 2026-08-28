@@ -23,7 +23,7 @@ export default async function CompletePage({ params }: PageProps<'/checkout/comp
 
         <p className="mt-6 text-body text-ink">
           주문 확인 메일을 보냈어요. 캘거리에서 매입과 검수를 마치면 출고 알림을 다시 보내드려요.
-          주 3회 출고하고, 출고 후 한국 자택까지 영업일 기준 4~10일 걸려요.
+          주 3회 출고하고, 출고 후 한국 자택까지 영업일 기준 7~14일 걸려요.
         </p>
 
         <div className="mt-8 border border-outline p-5">

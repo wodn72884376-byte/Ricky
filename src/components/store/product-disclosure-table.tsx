@@ -15,18 +15,20 @@ type Row = { label: string; value: string | null; note?: string };
 
 export function ProductDisclosureTable({ product }: { product: CatalogProduct }) {
   const KIND: Record<string, string> = {
-    outerwear: '아우터', top: '상의', bottom: '하의', bag: '가방', accessory: '패션잡화',
+    outerwear: '아우터', top: '상의', bottom: '하의',
+    bag: '가방', wallet: '지갑', shoes: '신발', accessory: '패션잡화',
   };
 
   const rows: Row[] = [
     { label: '종류', value: KIND[product.category] ?? null },
-    { label: '소재', value: null },
+    // 케어 라벨에서 옮긴 값이다. 없으면 비운다 — 브랜드 소개 문구로 대신하지 않는다
+    { label: '소재', value: product.material },
     { label: '색상', value: product.variants.map((v) => v.colorKo).join(' / ') },
     { label: '크기', value: product.sizes.join(', ') },
-    { label: '제조자', value: "Arc'teryx Equipment" },
+    { label: '제조자', value: product.manufacturer },
     // 원산지는 실물 라벨 기준이다. 브랜드 국적으로 추정하지 않는다 (PROJECT.md §3.3)
     { label: '제조국', value: product.originCountry, note: '실물 라벨 확인 후 표기' },
-    { label: '취급 시 주의사항', value: null },
+    { label: '취급 시 주의사항', value: product.care },
     { label: '품질보증기준', value: '관련 법 및 소비자분쟁해결기준에 따름' },
     { label: '판매자', value: 'RICKY — 캐나다 알버타 소재 독립 사업자' },
     { label: 'A/S 책임자 및 연락처', value: null },

@@ -36,6 +36,17 @@ const NON_TEXT = [
   ['skeleton #f5f5f5',              [245, 245, 245],                WHITE, '로딩 플레이스홀더'],
 ];
 
+/**
+ * 네이버페이 버튼. 색·표기·비율이 네이버가 정한 자산이라 우리 팔레트로 다시 칠할 수 없다.
+ * 흰 글자 대비가 낮으므로 **이 버튼에 안내 문구를 얹지 않는다** —
+ * 설명은 버튼 밖 `#5d5d5d` 각주로 둔다 (src/components/store/naver-pay-button.tsx).
+ */
+const NAVER_GREEN = [3, 199, 90];
+const BRAND_LOCKED = [
+  ['네이버페이 흰 글자 / #03C75A', WHITE, NAVER_GREEN, '버튼 라벨. 문장을 얹지 말 것'],
+  ['네이버페이 검정 대비 참고',     BLACK, NAVER_GREEN, '참고값 — 네이버 규정상 검정 라벨은 쓰지 않는다'],
+];
+
 let failed = 0;
 console.log('WCAG 2.2 토큰 대비 검증\n');
 for (const [label, fg, bg, need, carries] of CHECKS) {
@@ -50,6 +61,15 @@ for (const [label, fg, bg, need, carries] of CHECKS) {
 
 console.log('\n비정보 토큰 (AA 대상 아님 — 용도가 새면 위로 옮길 것)\n');
 for (const [label, fg, bg, note] of NON_TEXT) {
+  console.log(`      ${label.padEnd(31)} ${ratio(fg, bg).toFixed(2).padStart(6)}:1  — ${note}`);
+}
+
+/*
+  외부 브랜드 자산은 우리가 색을 정하지 못한다. 통과/미달로 판정하지 않고
+  **수치를 계속 눈에 보이게** 두어, 대비가 필요한 문구를 이 위에 얹지 않도록 한다.
+*/
+console.log('\n외부 브랜드 자산 (색을 우리가 정하지 못함 — 판정 대상 아님)\n');
+for (const [label, fg, bg, note] of BRAND_LOCKED) {
   console.log(`      ${label.padEnd(31)} ${ratio(fg, bg).toFixed(2).padStart(6)}:1  — ${note}`);
 }
 

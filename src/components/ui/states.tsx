@@ -16,7 +16,7 @@ export function EmptyState({
   className,
 }: {
   message: string;
-  /** 찜·장바구니처럼 갈 곳이 있을 때만. 검색·필터 결과에는 버튼을 두지 않는다 */
+  /** 장바구니처럼 갈 곳이 있을 때만. 검색·필터 결과에는 버튼을 두지 않는다 */
   action?: ReactNode;
   className?: string;
 }) {

@@ -69,6 +69,10 @@ export type ProductRow = {
   as_contact: string | null;
   /** 한국 공식 정발가(원). 확인된 경우에만 채운다 — 추정치를 넣지 않는다 */
   kr_retail_krw: number | null;
+  /** 이 상품 한 점의 국제 배송비(원). null이면 무게 기반 계산값, 0은 무료배송 */
+  shipping_krw: number | null;
+  /** 네이버 스마트스토어 상품 URL. active 상태에는 반드시 있어야 한다 (DB check) */
+  smartstore_url: string | null;
   status: ProductStatus;
   created_at: string;
   updated_at: string;
@@ -264,6 +268,10 @@ export type StoreVariantRow = {
   price_krw: number | null;
   /** 비교가. 원가·마진과 달리 고객 노출 대상이다 */
   kr_retail_krw: number | null;
+  /** 상품별 배송비(원). null이면 무게 기반 계산값 */
+  shipping_krw: number | null;
+  /** 결제로 가는 유일한 경로 */
+  smartstore_url: string | null;
   stock_type: StockType;
   purchasable: boolean | null;
   supplier_checked_at: string | null;

@@ -51,7 +51,7 @@ export default function AboutPage() {
               남겨요. 보정하지 않고, 워터마크도 얹지 않아요.
             </>,
             <>
-              <strong className="font-bold">주 3회 출고.</strong> 캘거리 출고 후 한국 자택까지 영업일 기준 4~10일이
+              <strong className="font-bold">주 3회 출고.</strong> 캘거리 출고 후 한국 자택까지 영업일 기준 7~14일이
               걸려요.
             </>,
             <>

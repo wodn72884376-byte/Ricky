@@ -148,6 +148,56 @@ describe('extractProduct', () => {
     expect(p?.listPriceMinor).toBeNull();
   });
 
+  it('hasVariant 가 없는 단일 상품도 variant 1개로 세운다', () => {
+    /*
+     * 색상·사이즈가 하나뿐인 상품은 variant 배열 없이 노드 자신에 offer 를 단다.
+     * "variant 없음 = 수집 실패"로 처리하면 멀쩡한 상품이 통째로 버려진다.
+     */
+    const html = `<script type="application/ld+json">{
+      "@type":"Product","name":"Cherry Bag Charm","sku":"CX123 BLK","color":"Black",
+      "offers":{"@type":"Offer","priceCurrency":"CAD","price":20,
+        "availability":"https://schema.org/InStock"}}</script>`;
+    const p = extractProduct(html, 'CAD');
+    expect(p?.variants).toHaveLength(1);
+    expect(p?.variants[0]?.color).toBe('Black');
+    expect(p?.variants[0]?.priceMinor).toBe(2000);
+    expect(p?.variants[0]?.availability).toBe('in_stock');
+  });
+
+  it('가격이 없으면 variant 를 지어내지 않는다', () => {
+    const html = `<script type="application/ld+json">{"@type":"Product","name":"X"}</script>`;
+    expect(extractProduct(html, 'CAD')?.variants).toHaveLength(0);
+  });
+
+  it('색상·사이즈가 없는 대표 항목은 variant 에서 뺀다', () => {
+    /*
+     * 실측(랄프로렌): hasVariant 첫 자리에 상품 자신이 들어간다(sku 만 있고 color/size 없음).
+     * 남겨 두면 매트릭스에 빈 행이 생기고 variant 수도 하나 많게 센다.
+     */
+    const html = `<script type="application/ld+json">{
+      "@type":"ProductGroup","name":"Cable-Knit Cotton Polo Sweater",
+      "hasVariant":[
+        {"@type":"Product","sku":"650001",
+         "offers":{"@type":"Offer","priceCurrency":"CAD","price":198,
+           "availability":"https://schema.org/InStock"}},
+        {"@type":"Product","color":"Hunter Navy","size":"XS",
+         "offers":{"@type":"Offer","priceCurrency":"CAD","price":198,
+           "availability":"https://schema.org/InStock"}}
+      ]}</script>`;
+    const p = extractProduct(html, 'CAD');
+    expect(p?.variants).toHaveLength(1);
+    expect(p?.variants[0]?.color).toBe('Hunter Navy');
+  });
+
+  it('색상·사이즈 개념이 없는 상품은 그대로 둔다', () => {
+    // 가방·지갑은 전 variant 가 color/size 없이 온다. 이걸 걸러내면 상품이 통째로 사라진다.
+    const html = `<script type="application/ld+json">{
+      "@type":"Product","name":"Cherry Bag Charm","sku":"CX123",
+      "offers":{"@type":"Offer","priceCurrency":"CAD","price":20,
+        "availability":"https://schema.org/InStock"}}</script>`;
+    expect(extractProduct(html, 'CAD')?.variants).toHaveLength(1);
+  });
+
   it('상품 마크업이 없으면 null', () => {
     expect(extractProduct('<html><body>없음</body></html>', 'CAD')).toBeNull();
   });

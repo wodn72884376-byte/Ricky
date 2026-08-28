@@ -7,6 +7,15 @@ import { hasSupabaseEnv, publicEnv } from '@/lib/env';
  * Next 16에서 middleware는 proxy로 이름이 바뀌었고 런타임은 nodejs로 고정된다.
  */
 export async function proxy(request: NextRequest) {
+  /*
+    `/dev`는 컴포넌트 프리뷰다. 더미 상품과 가짜 주문이 들어 있어서
+    프로덕션에 열려 있으면 검색에 가짜 상품이 뜨고, 실제 화면과 헷갈린다.
+    robots로도 막지만 그건 요청이지 차단이 아니다 — 여기서 실제로 막는다.
+  */
+  if (process.env.NODE_ENV === 'production' && request.nextUrl.pathname.startsWith('/dev')) {
+    return new NextResponse(null, { status: 404 });
+  }
+
   let response = NextResponse.next({ request });
 
   // Supabase가 설정되지 않았으면 세션 갱신할 것도 없다.

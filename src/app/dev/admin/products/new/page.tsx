@@ -1,7 +1,8 @@
 import { notFound } from 'next/navigation';
 import { AdminSidebar, AdminTopBar } from '@/components/admin/admin-sidebar';
 import { BRAND_COLUMNS } from '@/lib/nav';
-import { ProductForm } from '@/app/admin/products/new/product-form';
+import { ProductForm } from '@/app/admin/products/product-form';
+import { createProduct } from '@/app/admin/products/new/actions';
 
 /**
  * 상품 등록 화면 미리보기. **개발 환경 전용** — 프로덕션에서는 404다.
@@ -24,7 +25,11 @@ export default function NewProductPreview() {
           <p className="mb-8 border border-outline px-4 py-3 text-meta text-muted-text">
             개발 미리보기 — 실제 화면은 <code>/admin/products/new</code>예요.
           </p>
-          <ProductForm brands={BRAND_COLUMNS.map((b) => ({ value: b.slug, label: b.label }))} />
+          <ProductForm
+            mode="create"
+            action={createProduct}
+            brands={BRAND_COLUMNS.map((b) => ({ value: b.slug, label: b.label }))}
+          />
         </main>
       </div>
     </div>

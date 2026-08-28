@@ -58,8 +58,11 @@ export type StockRow = {
   onSale: boolean;
 
   checkedAt: string;
-  /** 이 값을 어떤 경로로 얻었는지 — 신뢰도 판단 근거 */
-  source: 'http' | 'browser' | 'cache';
+  /**
+   * 이 값을 어떤 경로로 얻었는지 — 신뢰도 판단 근거.
+   * manual = 운영자가 북마클릿으로 직접 수집. 사람이 본 시점의 값이라 자동 폴링과 신선도가 다르다.
+   */
+  source: 'http' | 'browser' | 'cache' | 'manual';
 };
 
 /** 상품 1건 조회 결과 */

@@ -32,13 +32,26 @@ const SIGNATURES: Array<[BlockKind, RegExp]> = [
  * 본문에 "captcha" 같은 단어가 우연히 들어 있을 수 있기 때문이다.
  */
 export function detectBlockPage(html: string): BlockKind {
-  // 정상 PDP 는 이보다 훨씬 크다. 큰 페이지는 지문이 있어도 본문 텍스트일 가능성이 높다.
+  // 정상 PDP 는 수십 KB 이상이다. 큰 페이지에 든 지문은 본문 텍스트일 가능성이 높다.
   const SUSPICIOUS_MAX_BYTES = 60_000;
-  if (html.length > SUSPICIOUS_MAX_BYTES) return null;
 
-  for (const [kind, rx] of SIGNATURES) {
-    if (rx.test(html)) return kind;
+  // 벤더를 특정할 수 있으면 그것부터 말한다 — 대응 방법이 벤더마다 다르기 때문이다.
+  if (html.length <= SUSPICIOUS_MAX_BYTES) {
+    for (const [kind, rx] of SIGNATURES) {
+      if (rx.test(html)) return kind;
+    }
   }
+
+  /*
+   * 지문이 없더라도 내용이 사실상 비어 있으면 그 자체가 차단 신호다.
+   *
+   * 실측(lululemon/Akamai): 첫 요청은 통과하지만 이후로는 본문 218바이트짜리
+   * 껍데기만 돌아온다. 문자열 매칭으로는 안 잡히므로 크기로 판정하지 않으면
+   * "정상"으로 보고돼 진단이 다시 거짓이 된다.
+   */
+  const EMPTY_MAX_BYTES = 1_000;
+  if (html.trim().length < EMPTY_MAX_BYTES) return 'generic';
+
   return null;
 }
 
@@ -66,7 +79,7 @@ export function blockLabel(kind: BlockKind): string {
     case 'datadome':
       return '차단(DataDome)';
     case 'generic':
-      return '차단(캡차)';
+      return '차단(빈 응답·캡차)';
     default:
       return '정상';
   }

@@ -15,7 +15,7 @@
     "fonts:sync": "node scripts/sync-fonts.mjs",
     "postinstall": "node scripts/sync-fonts.mjs",
     "design:contrast": "node scripts/check-contrast.mjs",
-    "catalog:import": "node scripts/import-arcteryx.mjs"
+    "catalog:import": "node scripts/import-catalog.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.5",

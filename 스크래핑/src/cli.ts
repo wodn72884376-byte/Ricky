@@ -9,6 +9,8 @@
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { isAbsolute, join } from 'node:path';
+import { existsSync, readdirSync, statSync } from 'node:fs';
+import { homedir } from 'node:os';
 
 import { getAdapter } from './adapters/index.ts';
 import { ALL_BRAND_KEYS, BRANDS, resolveBrands } from './config/brands.ts';
@@ -27,7 +29,18 @@ import { collectBrandSignals } from './signals/collect.ts';
 import { runStockCheck } from './stock/check.ts';
 import { diffStock } from './stock/diff.ts';
 import { renderStockReport, toStockCsv } from './stock/report.ts';
-import type { StockRow } from './stock/types.ts';
+import { renderStockHtml } from './stock/html.ts';
+import {
+  catalogTargets,
+  coverage,
+  learnUrls,
+  resolveTargetUrls,
+  type CatalogTarget,
+} from './stock/catalog.ts';
+import { collectReports, renderDashboard } from './stock/dashboard.ts';
+import type { ProductStock, StockRow } from './stock/types.ts';
+import { bookmarkletHelp, bookmarkletPage, bookmarkletSource } from './stock/bookmarklet.ts';
+import { importCaptures } from './stock/import.ts';
 import { naverMode, naverSearch, NaverNotConfiguredError } from './signals/naverClient.ts';
 
 // 프로젝트 경로에 한글이 포함된다 → fileURLToPath (CLAUDE.md 코드 컨벤션)
@@ -43,6 +56,12 @@ type Args = {
   skipKr: boolean;
   /** 감시 목록 파일 경로. 있으면 이 URL 들만 조회한다. */
   watchFile: string | null;
+  /** 북마클릿 수집 파일이 있는 디렉터리. 있으면 네트워크 수집 대신 이걸 읽는다. */
+  importDir: string | null;
+  /** 자동 수집과 북마클릿 수집분을 한 번에 돌려 리포트 하나로 합친다. */
+  all: boolean;
+  /** 상위 프로젝트 카탈로그에 등록된 상품만 조회한다. */
+  catalog: boolean;
 };
 
 function parseArgs(argv: string[]): Args {
@@ -69,6 +88,9 @@ function parseArgs(argv: string[]): Args {
     skipSignals: flags.get('no-signals') === 'true',
     skipKr: flags.get('no-kr') === 'true',
     watchFile: flags.get('watch') === 'true' ? 'watchlist.txt' : (flags.get('watch') ?? null),
+    importDir: flags.get('import') === 'true' ? defaultDownloadsDir() : (flags.get('import') ?? null),
+    all: flags.get('all') === 'true',
+    catalog: flags.get('catalog') === 'true',
   };
 }
 
@@ -275,33 +297,103 @@ async function stock(args: Args): Promise<void> {
   const startedAt = new Date().toISOString();
   const t0 = Date.now();
 
+  /*
+   * 조회 대상.
+   *
+   * --catalog 는 상위 프로젝트에 등록된 상품만 본다. 감시 목록을 손으로 관리하면
+   * 반드시 카탈로그와 어긋나므로(등록했는데 조회 안 되고, 뺐는데 계속 조회한다)
+   * 등록된 상품이 곧 조회 대상이 되게 한다.
+   */
+  let targets: CatalogTarget[] = [];
   let watchUrls: string[] | undefined;
-  if (args.watchFile) {
-    const path = isAbsolute(args.watchFile) ? args.watchFile : join(process.cwd(), args.watchFile);
+
+  if (args.catalog) {
+    targets = catalogTargets(args.brands);
+    log.step(`카탈로그 상품 ${targets.length}건`);
+    targets = await resolveTargetUrls(targets, { fresh: args.fresh });
+
+    const resolved = targets.filter((t) => t.url);
+    watchUrls = resolved.map((t) => t.url!);
+    log.ok(`  공식몰 URL 확보 ${resolved.length}/${targets.length}건`);
+  }
+
+  const watchFile = args.watchFile ?? (args.all && !args.catalog ? 'watchlist.txt' : null);
+  if (watchFile && (args.all || !args.importDir)) {
+    const path = isAbsolute(watchFile) ? watchFile : join(process.cwd(), watchFile);
     try {
       watchUrls = (await readFile(path, 'utf8'))
         .split(/\r?\n/)
         .map((l) => l.replace(/#.*$/, '').trim())
         .filter((l) => l.startsWith('http'));
-      log.info(`감시 목록 ${watchUrls.length}건 (${args.watchFile})`);
+      log.info(`감시 목록 ${watchUrls.length}건 (${watchFile})`);
     } catch {
-      log.error(`감시 목록을 읽지 못했다: ${path}`);
-      process.exitCode = 1;
-      return;
+      if (!args.all) {
+        log.error(`감시 목록을 읽지 못했다: ${path}`);
+        process.exitCode = 1;
+        return;
+      }
+      log.info(`감시 목록 없음 (${watchFile})`);
     }
-    if (watchUrls.length === 0) {
-      log.error('감시 목록이 비어 있다.');
-      process.exitCode = 1;
-      return;
+    if (watchUrls && watchUrls.length === 0) {
+      if (!args.all) {
+        log.error('감시 목록이 비어 있다.');
+        process.exitCode = 1;
+        return;
+      }
+      watchUrls = undefined;
     }
   }
 
-  const results = await runStockCheck({
-    brands: args.brands,
-    limit: args.limit,
-    fresh: args.fresh,
-    ...(watchUrls ? { watchUrls } : {}),
-  });
+  /*
+   * 수집 경로가 둘이다 — 자동(아크테릭스·코치)과 북마클릿(차단 브랜드).
+   * --all 은 둘을 한 번에 돌려 리포트 하나로 합친다. 브랜드마다 명령을
+   * 따로 기억해야 하면 결국 안 돌리게 된다.
+   */
+  const results: ProductStock[] = [];
+
+  if (args.all || !args.importDir) {
+    results.push(
+      ...(await runStockCheck({
+        brands: args.brands,
+        limit: args.limit,
+        fresh: args.fresh,
+        ...(watchUrls ? { watchUrls } : {}),
+      })),
+    );
+  }
+
+  if (args.all || args.importDir) {
+    const dir = args.importDir ?? defaultDownloadsDir();
+    try {
+      results.push(...(await importCaptures(dir)));
+    } catch (err) {
+      // --all 에서는 북마클릿 수집분이 없어도 자동 수집분만으로 진행한다
+      if (!args.all) throw err;
+      log.info(`북마클릿 수집분 없음 (${dir})`);
+    }
+  }
+
+  /*
+   * 카탈로그 대조.
+   * 목록수집은 주변 상품까지 담아 오므로 등록된 상품만 남긴다.
+   * 그리고 아직 못 받은 상품을 알려 준다 — 이게 다음에 무엇을 할지 정해 준다.
+   */
+  let missing: CatalogTarget[] = [];
+  if (args.catalog) {
+    const learned = await learnUrls(results, targets);
+    if (learned > 0) log.info(`  북마클릿 수집분에서 공식몰 URL ${learned}건 학습`);
+
+    const cov = coverage(results, targets);
+    missing = cov.missing;
+    const kept = cov.covered.map((c) => c.stock);
+
+    if (cov.extra.length > 0) {
+      log.info(`  카탈로그에 없는 수집분 ${cov.extra.length}건 제외`);
+    }
+    // 수집 실패는 남긴다 — 왜 못 받았는지 리포트에 보여야 한다.
+    results.length = 0;
+    results.push(...kept);
+  }
 
   const rows: StockRow[] = results.flatMap((r) => r.rows);
 
@@ -318,10 +410,26 @@ async function stock(args: Args): Promise<void> {
     comparedWith: previous?.label ?? null,
   });
 
+  const htmlPath = join(DATA_DIR, `재고-${tag}.html`);
   const mdPath = join(DATA_DIR, `재고-${tag}.md`);
   const csvPath = join(DATA_DIR, `재고-${tag}.csv`);
   const jsonPath = join(DATA_DIR, `재고-${tag}.json`);
 
+  await writeFile(
+    htmlPath,
+    renderStockHtml(results, events, {
+      startedAt,
+      durationMs: Date.now() - t0,
+      comparedWith: previous?.label ?? null,
+      missing: missing.map((m) => ({
+        brand: m.brand,
+        name: m.name,
+        codes: m.codes,
+        candidates: m.candidates,
+      })),
+    }),
+    'utf8',
+  );
   await writeFile(mdPath, md, 'utf8');
   await writeFile(csvPath, toStockCsv(rows), 'utf8');
   await writeFile(
@@ -330,10 +438,17 @@ async function stock(args: Args): Promise<void> {
     'utf8',
   );
 
+  // 고정 주소 대시보드를 갱신한다. 타임스탬프 파일을 매번 찾지 않게 하려는 것이다.
+  const indexPath = join(DATA_DIR, 'index.html');
+  await writeFile(indexPath, renderDashboard(await collectReports(DATA_DIR)), 'utf8');
+
   console.log();
-  log.ok(`리포트  ${mdPath}`);
-  log.ok(`CSV     ${csvPath}`);
-  log.ok(`스냅샷  ${jsonPath}`);
+  log.ok('브라우저에서 열기 ↓  (즐겨찾기에 등록해 두면 항상 최신)');
+  console.log(`   ${browserPath(indexPath)}`);
+  console.log();
+  log.info(`이번 리포트  ${browserPath(htmlPath)}`);
+  log.info(`CSV          ${csvPath}`);
+  log.info(`스냅샷       ${jsonPath}`);
 }
 
 /** data/ 에서 가장 최근 재고 스냅샷을 읽는다. 다음 실행의 대조 기준이 된다. */
@@ -400,6 +515,124 @@ async function scan(args: Args): Promise<void> {
   log.ok(`원자료  ${jsonPath}`);
 }
 
+/**
+ * 북마클릿 수집 파일이 떨어지는 기본 위치.
+ * WSL 에서는 브라우저가 Windows 쪽에서 돌기 때문에 리눅스 홈이 아니라
+ * /mnt/c/Users/<사용자>/Downloads 에 저장된다.
+ */
+function defaultDownloadsDir(): string {
+  /*
+   * 윈도우 사용자명은 리눅스 사용자명과 다를 수 있다(실제로 달랐다).
+   * 그래서 환경변수로 추측하지 않고 /mnt/c/Users 를 직접 훑는다.
+   */
+  const SYSTEM_PROFILES = new Set([
+    'All Users',
+    'Default',
+    'Default User',
+    'Public',
+    'WsiAccount',
+    'desktop.ini',
+  ]);
+
+  try {
+    const candidates = readdirSync('/mnt/c/Users')
+      .filter((name) => !SYSTEM_PROFILES.has(name))
+      .map((name) => join('/mnt/c/Users', name, 'Downloads'))
+      .filter((dir) => existsSync(dir));
+
+    // 여러 계정이 있으면 최근에 쓴 쪽이 실사용 계정일 가능성이 높다
+    const best = candidates
+      .map((dir) => ({ dir, mtime: statSync(dir).mtimeMs }))
+      .sort((a, b) => b.mtime - a.mtime)[0];
+
+    if (best) return best.dir;
+  } catch {
+    // WSL 이 아니거나 /mnt/c 가 없다 — 리눅스 홈으로 간다
+  }
+
+  return join(homedir(), 'Downloads');
+}
+
+async function bookmarklet(): Promise<void> {
+  /*
+   * 설치 페이지는 브라우저가 열 수 있는 곳에 둔다.
+   * WSL 에서 브라우저는 Windows 쪽에서 돌기 때문에, 리눅스 홈에 두면
+   * 경로를 손으로 옮겨 적어야 한다. 다운로드 폴더에 쓰는 편이 확실하다.
+   */
+  const dir = defaultDownloadsDir();
+  const file = join(dir, 'ricky-북마클릿-설치.html');
+  const winPath = toWindowsPath(file);
+
+  try {
+    await mkdir(dir, { recursive: true });
+    /*
+     * 사이트별 카탈로그 상품코드를 심는다.
+     * 코드가 없는 브랜드(룰루레몬)에까지 필터를 걸면 전부 걸러져 0건이 되므로
+     * 브랜드마다 따로 담고, 빈 목록은 "거르지 말라"는 뜻으로 쓴다.
+     */
+    const targets = catalogTargets();
+    const byHost: Record<string, string[]> = {};
+    const namesByHost: Record<string, string[]> = {};
+    const rows: string[][] = [['브랜드', '등록', '코드', '목록수집 동작']];
+
+    for (const brand of ALL_BRAND_KEYS) {
+      const mine = targets.filter((t) => t.brand === brand);
+      if (mine.length === 0) {
+        rows.push([BRANDS[brand].labelKo, '0', '-', '카탈로그에 없음 — 대상 아님']);
+        continue;
+      }
+      const codes = [...new Set(mine.flatMap((t) => t.codes))];
+      const host = new URL(BRANDS[brand].ca.origin).hostname.replace(/^www\./, '');
+      byHost[host] = codes;
+      namesByHost[host] = mine.map((t) => `${t.name}${t.codes.length ? '' : ' (코드 없음 — 수집 불가)'}`);
+      rows.push([
+        BRANDS[brand].labelKo,
+        String(mine.length),
+        String(codes.length),
+        codes.length === 0
+          ? '목록 전체를 담고 이름으로 대조'
+          : codes.length < mine.length
+            ? `등록 상품만 (코드 없는 ${mine.length - codes.length}건 제외)`
+            : '등록 상품만',
+      ]);
+    }
+
+    await writeFile(file, bookmarkletPage(byHost, namesByHost), 'utf8');
+    console.log();
+    printTable(rows);
+    console.log();
+    console.log(bookmarkletHelp(winPath ?? file, dir));
+  } catch {
+    // 파일을 못 쓰면 코드라도 보여 준다
+    console.log(bookmarkletHelp('(설치 페이지 생성 실패 — 아래 코드를 직접 북마크에 넣어라)', dir));
+    console.log(bookmarkletSource());
+  }
+  console.log();
+}
+
+/**
+ * 리눅스 경로를 윈도우 브라우저가 열 수 있는 형태로 바꾼다.
+ *
+ * WSL 안의 파일은 \\wsl.localhost\<배포판>\... 로 접근한다.
+ * 이 변환이 없으면 리포트를 만들어 놓고 열 방법을 사람이 찾아야 한다.
+ */
+function browserPath(p: string): string {
+  const win = toWindowsPath(p);
+  if (win) return win;
+
+  const distro = process.env.WSL_DISTRO_NAME;
+  if (distro) return `\\\\wsl.localhost\\${distro}${p.replace(/\//g, '\\')}`;
+
+  return p;
+}
+
+/** /mnt/c/... 를 윈도우 탐색기·브라우저가 아는 경로로 바꾼다. */
+function toWindowsPath(p: string): string | null {
+  const m = p.match(/^\/mnt\/([a-z])\/(.*)$/);
+  if (!m) return null;
+  return `${m[1]!.toUpperCase()}:\\${m[2]!.replace(/\//g, '\\')}`;
+}
+
 function help(): void {
   console.log(`
 RICKY 소싱 리서치 파이프라인
@@ -410,7 +643,11 @@ RICKY 소싱 리서치 파이프라인
   npm run doctor                     엔드포인트 생존 확인 (먼저 실행할 것)
   npm run stock -- --brand=arcteryx,coach --limit=10
                                      캐나다 공식몰 재고 조회 (색상 × 사이즈)
-  npm run stock -- --watch           watchlist.txt 의 URL 만 조회 (운영용)
+  npm run stock:catalog              상위 프로젝트에 등록된 상품만 조회 (권장)
+  npm run stock:all                  자동 + 북마클릿을 한 번에 → 리포트 하나
+  npm run stock -- --watch           watchlist.txt 의 URL 만 조회
+  npm run bookmarklet                반자동 수집 북마클릿 설치 안내
+  npm run stock -- --import          북마클릿 수집분 가져오기 (차단 브랜드용)
   npm run signals -- --brand=coach   한국 인기도 신호만 수집
   npm run catalog -- --brand=arcteryx --new
                                      캐나다 카탈로그만 수집
@@ -425,6 +662,9 @@ RICKY 소싱 리서치 파이프라인
   --no-signals          네이버 인기도 신호 생략
   --no-kr               한국 가격 수집 생략 (CA 카탈로그만)
   --watch[=파일]        재고 조회 대상을 URL 목록 파일로 지정 (기본 watchlist.txt)
+  --import[=디렉터리]   북마클릿 수집 파일을 읽는다 (기본 다운로드 폴더)
+  --all                 자동 수집 + 북마클릿 수집을 한 번에 돌려 리포트 하나로 합친다
+  --catalog             상위 프로젝트 카탈로그에 등록된 상품만 조회한다
 
 준비
   1) npm install
@@ -451,6 +691,9 @@ async function main(): Promise<void> {
         break;
       case 'stock':
         await stock(args);
+        break;
+      case 'bookmarklet':
+        await bookmarklet();
         break;
       case 'scan':
       case 'compare':

@@ -8,7 +8,6 @@
  *   - 합산과세: 같은 날 같은 수취인 도착분은 합산된다 → 장바구니 전체로 한 번 판정한다.
  */
 import { estimateCustoms, type CustomsEstimate } from '@/lib/customs';
-import { quoteShipping } from '@/lib/shipping';
 
 /** 관세 안내용 고시환율. TODO(fx): fx_rates 테이블에서 읽는다 (PROJECT.md §5) */
 export const CUSTOMS_USD_KRW = 1380;
@@ -21,11 +20,17 @@ export type CheckoutLine = {
   imageUrl: string;
   imageAlt: string;
   size: string | null;
+  /** variant의 영문 색상명. 같은 상품이라도 색상마다 값이 다를 수 있다 */
+  color: string | null;
   qty: number;
   unitPriceKrw: number;
   category: string;
   originCountry: string;
   weightG: number;
+  /** 이 상품 한 점의 배송비(원). 운영자가 상품마다 정한다 */
+  shippingKrw: number;
+  /** 결제로 가는 유일한 경로. 없으면 아직 살 수 없다 */
+  smartstoreUrl: string | null;
   purchasable: boolean;
 };
 
@@ -42,8 +47,12 @@ export type CheckoutTotals = {
 
 export function computeTotals(lines: CheckoutLine[]): CheckoutTotals {
   const subtotalKrw = lines.reduce((s, l) => s + l.unitPriceKrw * l.qty, 0);
-  const weightG = lines.reduce((s, l) => s + l.weightG * l.qty, 0);
-  const { shippingKrw } = quoteShipping(weightG);
+  /*
+    배송비는 **상품마다 정해진 금액의 합**이다 (2026-08-28 운영자 결정).
+    합산 무게로 한 번에 계산하던 방식을 버렸다 — 상품 상세에서 본 금액과
+    결제 금액이 달라지면 그건 계산이 아니라 오차로 읽힌다.
+  */
+  const shippingKrw = lines.reduce((s, l) => s + l.shippingKrw * l.qty, 0);
 
   // 원산지가 섞이면 캐나다산만 CKFTA를 받는다. 장바구니 단위 안내에서는
   // **전부 캐나다산일 때만** 관세 면제로 안내한다 — 유리하게 반올림하지 않는다.

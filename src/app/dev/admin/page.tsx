@@ -73,7 +73,7 @@ export default function AdminPreview() {
 
           <section className="mt-12">
             <h2 className="text-editorial font-bold">현황</h2>
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
               <StatCard label="등록 상품" value="128" unit="개" note="이번 주 +12" href="/admin/products" />
               <StatCard label="주문" value="34" unit="건" note="어제 대비 +6" href="/admin/orders" />
               <StatCard label="재고 미확인" value="7" unit="개" note="6시간 임계 초과" alert href="/admin/monitoring" />

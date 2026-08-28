@@ -175,11 +175,40 @@ function readVariants(node: Json, expected: 'CAD' | 'KRW'): Variant[] {
 }
 
 /**
+ * 색상·사이즈가 둘 다 없는 "대표 항목"을 걸러낸다.
+ *
+ * 랄프로렌은 hasVariant 첫 자리에 상품 자신을 넣는다 — sku 는 있지만 color/size 가 없다.
+ * 이건 구매 단위가 아니라 상품 그 자체라서, 남겨 두면 매트릭스에 빈 행이 하나 생기고
+ * variant 수도 실제보다 하나 많게 센다.
+ *
+ * 단, 색상·사이즈 개념이 없는 상품(가방·지갑)은 모든 variant 가 그 모양이므로
+ * 하나라도 색상·사이즈를 가진 variant 가 있을 때만 걸러낸다.
+ */
+function dropRepresentative(variants: Variant[]): Variant[] {
+  const hasReal = variants.some((v) => v.color || v.size);
+  if (!hasReal) return variants;
+  return variants.filter((v) => v.color || v.size);
+}
+
+/**
  * HTML 에서 상품 1건을 뽑는다. 없으면 null.
  * @param expected 이 페이지에서 나와야 하는 통화. 다르면 수집분을 무효 처리한다.
  */
 export function extractProduct(html: string, expected: 'CAD' | 'KRW'): JsonLdProduct | null {
-  const nodes = parseJsonLdBlocks(html).filter(isProductish);
+  return extractProductFromNodes(parseJsonLdBlocks(html), expected);
+}
+
+/**
+ * 이미 파싱된 JSON-LD 노드에서 상품을 뽑는다.
+ *
+ * 북마클릿이 브라우저에서 걷어 온 JSON-LD 도 이 함수를 그대로 탄다.
+ * 수집 경로가 둘이어도 해석은 한 곳에서만 한다 — 아니면 반드시 갈라진다.
+ */
+export function extractProductFromNodes(
+  raw: Array<Record<string, unknown>>,
+  expected: 'CAD' | 'KRW',
+): JsonLdProduct | null {
+  const nodes = raw.filter(isProductish);
   if (nodes.length === 0) return null;
 
   // ProductGroup 이 variant 정보를 갖고 있으므로 우선한다.
@@ -189,8 +218,33 @@ export function extractProduct(html: string, expected: 'CAD' | 'KRW'): JsonLdPro
     nodes[0];
   if (!node) return null;
 
-  const variants = readVariants(node, expected);
+  let variants = dropRepresentative(readVariants(node, expected));
   const groupOffer = readOffer(node.offers);
+
+  /*
+   * hasVariant 가 없는 단일 상품.
+   *
+   * 색상·사이즈가 하나뿐인 상품(가방, 단일 컬러웨이 의류)이나 @graph 안에 실린
+   * 평범한 Product 는 variant 배열 없이 노드 자신에 offer 를 단다.
+   * 이걸 "variant 없음 = 수집 실패"로 처리하면 멀쩡한 상품이 통째로 버려진다.
+   * 노드 자신을 variant 하나로 세워 준다.
+   */
+  if (variants.length === 0 && (groupOffer.priceMinorCad !== null || groupOffer.priceKrw !== null)) {
+    if (!groupOffer.currency || groupOffer.currency === expected) {
+      variants = [
+        {
+          sku: str(node.sku) ?? str(node.mpn),
+          gtin: str(node.gtin14) ?? str(node.gtin13) ?? str(node.gtin) ?? null,
+          color: str(node.color),
+          size: str(node.size),
+          priceMinor: expected === 'CAD' ? groupOffer.priceMinorCad : groupOffer.priceKrw,
+          listPriceMinor: null,
+          availability: groupOffer.availability,
+          imageUrl: firstImage(node.image),
+        },
+      ];
+    }
+  }
 
   // 대표가 = 실제로 살 수 있는 최저 variant 가. variant 가 없으면 그룹 offer 를 쓴다.
   const variantPrices = variants

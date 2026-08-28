@@ -8,7 +8,7 @@ import { Field } from '@/components/ui/field';
 import { clear, getLines, getLinesOnServer, subscribe } from '@/lib/cart-store';
 import { computeTotals, previewOrderNo, type CheckoutLine } from '@/lib/checkout';
 import { isValidPccc, normalizePccc } from '@/lib/customs';
-import { findProduct, weightGOf } from '@/lib/catalog';
+import { resolveCartLines } from '@/lib/catalog';
 import { formatKrw } from '@/lib/money';
 
 /**
@@ -32,19 +32,8 @@ export function CheckoutView() {
   const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
 
-  const lines: CheckoutLine[] = stored.flatMap((line) => {
-    const p = findProduct(line.id);
-    if (!p) return [];
-    const v = p.variants[0]!;
-    return [{
-      id: p.slug, slug: p.slug, brand: p.brand, name: `${p.name} ${v.colorKo}`,
-      imageUrl: v.cardImage, imageAlt: `${p.name} ${v.colorKo}`,
-      size: line.size, qty: line.qty, unitPriceKrw: p.priceKrw,
-      category: p.category, originCountry: p.originCountry ?? '',
-      weightG: weightGOf(p),
-      purchasable: true,
-    }];
-  });
+  // 장바구니와 같은 함수를 쓴다. 두 화면이 따로 계산하면 금액이 갈린다.
+  const lines: CheckoutLine[] = resolveCartLines(stored);
 
   const totals = computeTotals(lines);
 

@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils/cn';
 /**
  * 헤더 우측 계정 영역.
  *
- * 비로그인: `로그인` 텍스트 링크 + `회원가입` 고스트 버튼
+ * 비로그인: `로그인` 고스트 버튼 하나
  * 로그인:   프로필 아이콘 → 드롭다운 (내 정보 / 주문 내역 / 1:1 문의 / 로그아웃)
  *
  * 세션은 클라이언트에서 구독한다. 레이아웃에서 서버로 읽으면 홈이 정적 렌더를 잃는다.
@@ -21,7 +21,6 @@ import { cn } from '@/lib/utils/cn';
 const MENU = [
   { label: '내 정보', href: '/account' },
   { label: '주문 내역', href: '/account/orders' },
-  { label: '찜한 상품', href: '/account/wishlist' },
   { label: '1:1 문의', href: '/support' },
 ];
 
@@ -102,32 +101,27 @@ export function AccountMenu({ iconsOnly = false }: { iconsOnly?: boolean } = {})
 }
 
 /**
- * 비로그인 상태의 두 어포던스. 반전 블랙을 쓰지 않는다 — 그건 구매 CTA의 몫이다.
+ * 비로그인 상태의 어포던스. **하나다** (2026-08-28 운영자 요청).
  *
- * 모바일에서는 숨긴다. 로고를 중앙에 두려면 좌우 폭이 비슷해야 하는데(§4 Navigation)
- * 우측에 셋을 두면 로고가 밀린다. 햄버거 시트가 같은 두 항목을 갖고 있다.
+ * 로그인이 매직링크라 가입과 로그인이 같은 동작이다 — 버튼 두 개는 같은 곳으로 가는
+ * 두 개의 문이었고, 고르게 만들 이유가 없었다. 반전 블랙을 쓰지 않는다: 그건 구매 CTA의 몫이다.
  */
 export function SignedOutActions({ iconsOnly = false }: { iconsOnly?: boolean }) {
   if (iconsOnly) {
-    // 축약·모바일에서는 로그인 아이콘만 남긴다. 회원가입은 로그인 화면 안에서 이어진다.
+    /* 자물쇠가 아니라 사람 아이콘이다 — 우측 줄은 로그인 여부와 무관하게 "계정" 자리다 */
     return (
       <Link href="/login" className="flex size-11 items-center justify-center text-ink">
-        <Lock />
+        <PersonOutline />
         <span className="sr-only">로그인 · 회원가입</span>
       </Link>
     );
   }
 
   return (
-    <div className="flex items-center gap-3">
-      <Link href="/login" className="flex min-h-11 items-center gap-1.5 text-util font-normal text-ink">
-        <Lock />
-        로그인
-      </Link>
-      <ButtonLink href="/login?mode=signup" variant="ghost" size="md">
-        회원가입
-      </ButtonLink>
-    </div>
+    <ButtonLink href="/login" variant="ghost" size="md" className="gap-1.5">
+      <Lock />
+      로그인
+    </ButtonLink>
   );
 }
 

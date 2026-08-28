@@ -13,9 +13,10 @@ async function seedVariant() {
     with b as (select id from brands where slug = 'arcteryx'),
     p as (
       insert into products (brand_id, name, slug, category, origin_country, status,
-                            material, care, manufacturer, as_contact)
+                            material, care, manufacturer, as_contact, smartstore_url)
       select b.id, '베타 LT 자켓', 'beta-lt-' || gen_random_uuid(), 'outerwear', 'CA', 'active',
-             '겉감 나일론 100%', '드라이클리닝 금지', 'Arc''teryx Equipment', 'RICKY 고객센터' from b
+             '겉감 나일론 100%', '드라이클리닝 금지', 'Arc''teryx Equipment', 'RICKY 고객센터',
+             'https://smartstore.naver.com/ricky/products/1' from b
       returning id
     )
     insert into product_variants (product_id, sku, size, color, cost_cad_cents, price_krw, stock_type)
@@ -182,8 +183,8 @@ describe('상품 정보 제공 고시 게이트', () => {
   function insertProduct(status: string, d: Partial<typeof FULL> = {}) {
     return db.query(
       `insert into products (brand_id, name, slug, category, origin_country, status,
-                             material, care, manufacturer, as_contact)
-       select id, '테스트 상품', 'gate-' || gen_random_uuid(), 'outerwear', $1, $2, $3, $4, $5, $6
+                             material, care, manufacturer, as_contact, smartstore_url)
+       select id, '테스트 상품', 'gate-' || gen_random_uuid(), 'outerwear', $1, $2, $3, $4, $5, $6, $7
        from brands where slug = 'arcteryx'`,
       [
         d.origin_country === null ? null : 'CA',
@@ -192,6 +193,7 @@ describe('상품 정보 제공 고시 게이트', () => {
         d.care ?? null,
         d.manufacturer ?? null,
         d.as_contact ?? null,
+        d.smartstore_url === null ? null : FULL.smartstore_url,
       ],
     );
   }
@@ -202,6 +204,7 @@ describe('상품 정보 제공 고시 게이트', () => {
     manufacturer: "Arc'teryx Equipment",
     as_contact: 'RICKY 고객센터',
     origin_country: 'CA' as string | null,
+    smartstore_url: 'https://smartstore.naver.com/ricky/products/1' as string | null,
   };
 
   it('draft는 고시 항목이 비어 있어도 저장된다 — 등록 도중에 막지 않는다', async () => {
@@ -222,6 +225,22 @@ describe('상품 정보 제공 고시 게이트', () => {
 
   it('원산지가 없으면 active로 게시할 수 없다 — 브랜드 국적으로 추정하지 않는다', async () => {
     await expect(insertProduct('active', { ...FULL, origin_country: null })).rejects.toThrow();
+  });
+
+  /* 결제가 스마트스토어에서 일어나므로 주소가 없으면 살 수 있는 경로가 없다 */
+  it('스마트스토어 주소가 없으면 active로 게시할 수 없다', async () => {
+    await expect(insertProduct('active', { ...FULL, smartstore_url: null })).rejects.toThrow();
+  });
+
+  it('네이버가 아닌 주소는 아예 저장되지 않는다', async () => {
+    await expect(
+      db.query(
+        `insert into products (brand_id, name, slug, category, status, smartstore_url)
+         select id, '테스트 상품', 'bad-' || gen_random_uuid(), 'outerwear', 'draft', $1
+         from brands where slug = 'arcteryx'`,
+        ['https://example.com/products/1'],
+      ),
+    ).rejects.toThrow();
   });
 });
 

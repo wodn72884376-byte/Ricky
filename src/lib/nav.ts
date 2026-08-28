@@ -77,5 +77,4 @@ export const PRIMARY_NAV = [
   { key: 'best', label: 'BEST', href: '/best', hasMenu: false },
   { key: 'men', label: "Men's", href: '/shop?gender=men', hasMenu: true, gender: 'men' as const },
   { key: 'women', label: "Women's", href: '/shop?gender=women', hasMenu: true, gender: 'women' as const },
-  { key: 'arrivals', label: '이번 주 입고', href: '/arrivals', hasMenu: false },
 ] as const;

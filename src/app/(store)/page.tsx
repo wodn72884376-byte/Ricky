@@ -72,7 +72,7 @@ const PROMISES: PromiseCard[] = [
   {
     label: '배송',
     title: '주 3회 출고해요',
-    body: '캘거리에서 밴쿠버를 거쳐 인천으로 가요. 출고 후 영업일 기준 4~10일 걸려요.',
+    body: '캘거리에서 밴쿠버를 거쳐 인천으로 가요. 출고 후 영업일 기준 7~14일 걸려요.',
     imageUrl: '/images/samples/bag-leather.webp',
     imageAlt: '나무 테이블 위에 놓인 갈색 가죽 가방과 노트',
     href: '/policy/shipping',

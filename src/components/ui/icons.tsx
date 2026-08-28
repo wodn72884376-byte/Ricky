@@ -76,7 +76,7 @@ export function PersonOutline({ className, size = 20 }: IconProps) {
   );
 }
 
-/** 찜 — 상품 카드 · 유틸리티. `filled`로 활성 상태를 표시한다. */
+/** 하트. 지금은 쓰이는 곳이 없다 — 찜 기능을 없앴다(2026-08-28). 아이콘 세트에는 남겨 둔다. */
 export function Heart({ className, size = 20, filled = false }: IconProps & { filled?: boolean }) {
   return (
     <svg

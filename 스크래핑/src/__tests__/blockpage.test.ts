@@ -34,6 +34,13 @@ describe('detectBlockPage', () => {
     expect(detectBlockPage('<html><body>Are you a robot?</body></html>')).toBe('generic');
   });
 
+  it('사실상 빈 응답은 차단으로 본다', () => {
+    // 실측(lululemon/Akamai): 잠긴 뒤로는 218바이트 껍데기만 돌아온다.
+    // 벤더 지문이 없어 문자열 매칭으로는 안 잡히므로 크기로 판정해야 한다.
+    expect(detectBlockPage('<html><head></head><body></body></html>')).toBe('generic');
+    expect(looksUsable('<html><head></head><body></body></html>')).toBe(false);
+  });
+
   it('정상 페이지는 null', () => {
     const pdp = `<html><body>${filler(30_000)}<script type="application/ld+json">
       {"@type":"Product","name":"Beta LT"}</script></body></html>`;
@@ -69,6 +76,7 @@ describe('blockLabel', () => {
   it('벤더별 한국어 라벨을 준다', () => {
     expect(blockLabel('perimeterx')).toBe('차단(PerimeterX)');
     expect(blockLabel('kasada')).toBe('차단(Kasada)');
+    expect(blockLabel('generic')).toBe('차단(빈 응답·캡차)');
     expect(blockLabel(null)).toBe('정상');
   });
 });
