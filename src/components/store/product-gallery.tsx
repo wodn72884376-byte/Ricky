@@ -9,6 +9,9 @@ import Image from 'next/image';
  *
  * 비율은 `--aspect-product`(4:5)로 카드와 통일한다. 원본이 어떤 비율이든
  * 같은 틀에 맞아야 그리드 리듬이 유지된다 (DESIGN.md §5).
+ *
+ * 폭은 상위(560px 컬럼)가 정한다. `sizes`도 그 실제 폭을 알려줘야
+ * 브라우저가 필요 이상으로 큰 이미지를 내려받지 않는다.
  */
 export function ProductGallery({
   images,
@@ -30,7 +33,7 @@ export function ProductGallery({
             src={src}
             alt={i === 0 ? alt : `${alt} 컷 ${i + 1}`}
             fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1280px) 45vw, 30vw"
+            sizes="(max-width: 768px) 100vw, 380px"
             priority={i < 2}
             className="object-cover"
           />

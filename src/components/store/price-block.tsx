@@ -42,7 +42,9 @@ export function PriceBlock({
 
   return (
     <div className={cn('flex flex-col gap-1', className)}>
-      <div className="flex items-baseline gap-2">
+      {/* 좁은 카드(2열 모바일)에서는 할인율·가격·정발가 셋이 한 줄에 안 들어간다.
+          접히게 두지 않으면 그리드 밖으로 넘친다. */}
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
         {onSale && (
           // 마케팅 surface의 유일한 채색 순간. 퍼센트 할인에만 쓴다 (§4 Sale Discount Pill)
           <span

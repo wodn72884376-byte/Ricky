@@ -59,7 +59,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<'/
     : null;
   const related = byBrand(product.brandSlug)
     .filter((p) => p.slug !== product.slug)
-    .slice(0, 4)
+    .slice(0, 6)
     .map(toCardProps);
 
   return (
@@ -73,7 +73,13 @@ export default async function ProductPage({ params, searchParams }: PageProps<'/
         <span className="text-ink">{product.name}</span>
       </nav>
 
-      <div className="mt-6 grid gap-10 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-14">
+            {/*
+        구매 영역은 지면을 다 쓰지 않는다. 사진을 화면 폭에 비례해 키우면 재킷 하나가
+        1000px가 되어 읽는 화면이 아니라 전시가 된다. 갤러리를 728px로 묶어
+        컷 하나가 ~360px에 머물게 한다 — 여러 컷을 한눈에 비교하는 게 목적이다.
+        아래 설명·고시표·관련상품은 지면 폭을 그대로 쓴다.
+      */}
+      <div className="mx-auto mt-6 grid max-w-[1192px] gap-10 lg:grid-cols-[minmax(0,728px)_400px] lg:gap-16">
         <ProductGallery images={variant.detailImages} alt={`${product.name} ${variant.colorKo}`} />
 
         {/* 구매 패널 — 스크롤해도 따라온다. 헤더 높이만큼 띄운다. */}
@@ -143,7 +149,9 @@ export default async function ProductPage({ params, searchParams }: PageProps<'/
       {related.length > 0 && (
         <section className="mt-20">
           <h2 className="text-editorial font-bold">같은 브랜드</h2>
-          <div className="mt-8 grid grid-cols-2 gap-x-5 gap-y-12 md:grid-cols-4">
+                  {/* 열 수를 카탈로그 그리드와 맞춘다. 4열 고정이면 넓은 화면에서 카드 하나가
+            600px가 되어 본 상품보다 커진다. */}
+        <div className="mt-8 grid grid-cols-2 gap-x-5 gap-y-12 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
             {related.map((p) => (
               <ProductCard key={p.id} {...p} />
             ))}
