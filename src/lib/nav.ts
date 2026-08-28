@@ -13,9 +13,16 @@ export type CategoryEntry = { label: string; value: string | null };
 
 export type BrandColumn = {
   slug: string;
-  /** 드롭다운 컬럼 헤더. 라틴 표기를 그대로 쓴다 */
+  /** 드롭다운 컬럼 헤더. 브랜드 공식 표기를 그대로 쓴다 (`lululemon` 소문자, `Arc'teryx` 아포스트로피) */
   label: string;
+  /**
+   * 헤더 3행처럼 조밀한 줄에서 쓰는 짧은 표기.
+   * `Polo Ralph Lauren`을 7개 브랜드와 한 줄에 세우면 줄이 넘친다 — 없으면 `label`을 쓴다.
+   */
+  short?: string;
   categories: CategoryEntry[];
+  /** 아직 매입하지 않은 브랜드. 목록은 열어 두되 빈 상태를 그대로 쓴다 (DESIGN.md §12-8) */
+  comingSoon?: boolean;
 };
 
 const APPAREL: CategoryEntry[] = [
@@ -34,11 +41,28 @@ const LEATHER_GOODS: CategoryEntry[] = [
   { label: '악세서리', value: 'accessory' },
 ];
 
+/** 아우터가 주력인 브랜드. 하의를 두지 않는다 — 없는 카테고리를 열어 두지 않는다 */
+const OUTERWEAR_LED: CategoryEntry[] = [
+  { label: '전체', value: null },
+  { label: '아우터', value: 'outerwear' },
+  { label: '상의', value: 'top' },
+  { label: '악세서리', value: 'accessory' },
+];
+
 export const BRAND_COLUMNS: BrandColumn[] = [
   { slug: 'arcteryx', label: "Arc'teryx", categories: APPAREL },
   { slug: 'lululemon', label: 'lululemon', categories: APPAREL },
   { slug: 'coach', label: 'Coach', categories: LEATHER_GOODS },
+  { slug: 'polo', label: 'Polo Ralph Lauren', short: 'Polo', categories: APPAREL, comingSoon: true },
+  { slug: 'tommy', label: 'Tommy Hilfiger', short: 'Tommy', categories: APPAREL, comingSoon: true },
+  { slug: 'canada-goose', label: 'Canada Goose', categories: OUTERWEAR_LED, comingSoon: true },
+  { slug: 'nobis', label: 'Nobis', categories: OUTERWEAR_LED, comingSoon: true },
 ];
+
+/** 헤더 3행·푸터처럼 좁은 줄에서 쓰는 표기 */
+export function brandShort(brand: BrandColumn): string {
+  return brand.short ?? brand.label;
+}
 
 /** 브랜드·성별·카테고리를 URL 검색 파라미터로 조합한다 (docs/IA.md §4). */
 export function brandHref(slug: string, gender?: Gender, category?: string | null): string {

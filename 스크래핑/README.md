@@ -56,10 +56,71 @@ cp .env.example .env               # 네이버 API 키 입력
 브랜드 한국 공식몰 정가만 쓴다. 인기도 점수는 유통폭(commerce) 축을 빼고
 남은 가중치를 재정규화하므로, 축이 없다고 점수가 깎이지는 않는다.
 
+## 재고 조회 (색상 × 사이즈)
+
+캐나다 공식몰의 **variant 단위** 재고를 조회한다 (PROJECT.md §6).
+상품 하나가 아니라 색상 × 사이즈 조합 하나하나가 수집 단위다 — 실제 매입이 일어나는 단위이기 때문이다.
+
+```bash
+cp watchlist.example.txt watchlist.txt   # 감시할 상품 URL 을 적는다
+npm run stock -- --watch                 # 목록만 조회 (운영에서 쓰는 방식)
+
+npm run stock -- --brand=arcteryx,coach --limit=10   # 카탈로그 최신순 N개
+```
+
+산출물은 `data/재고-{타임스탬프}.{md,csv,json}` 세 벌이다.
+실행할 때마다 **직전 스냅샷과 대조해 변화를 뽑는다.**
+
+```
+| 유형      | 상품                    | 색상   | 사이즈 | 변화                          |
+| 품절      | Proton Heavyweight Hoody | Azalea | S     | in_stock → out_of_stock       |
+| 재입고    | Beta Jacket Men's       | Black  | XS    | out_of_stock → in_stock       |
+| 가격 인상 | Denim Hooded Zip Jacket | Khaki  | XXL   | CA$120.00 → CA$167.50 (+47.50)|
+```
+
+마크다운 리포트는 색상 × 사이즈 격자로 그린다 (● 재고 · ◐ 임박 · ○ 품절 · · 미편성).
+
+```
+| 색상 \ 사이즈 | XS | S | M | L | XL | XXL | XXXL |
+| Black         | ●  | ● | ● | ● | ●  | ●   | ●    |
+| Sea Salt      | ●  | ● | ○ | ● | ●  | ●   | ●    |
+```
+
+### 사이즈를 어디서 읽는가
+
+브랜드마다 사이즈가 든 자리가 다르다. `src/stock/normalize.ts` 가 이 차이를 흡수한다.
+
+| 대상 | size 필드 | 실제 사이즈 |
+|---|---|---|
+| Arc'teryx 전 품목 | `"XS"` … `"XXXL"` | size 필드가 정본 |
+| Coach 의류 | `"M"` | size 필드 = SKU 토큰 |
+| **Coach 신발** | `"extra wide"` (폭 라벨) | **SKU 안에만** — `CCN27 CBD  9.5 D` → `9.5 D` |
+| Coach 가방·지갑 | `"large wristlet"` (분류 라벨) | 사이즈 개념 없음 → `-` |
+
+Coach 신발에서 size 필드만 믿으면 9.5 와 10 이 똑같이 "extra wide" 로 뭉개져
+사이즈별 재고 조회가 성립하지 않는다. 그래서 SKU 를 파싱해 치수와 폭을 되찾는다.
+
+### 같은 색상·사이즈가 둘 이상일 때
+
+Coach 는 스타일코드가 다른 관련 상품을 한 페이지에 묶어 둔다.
+Reagan Penny Loafer 페이지에는 `CAP31` / `CCN27` / `CW699` 세 스타일이 들어 있고,
+`CAP31`의 "Black 7 D"와 `CW699`의 "Black 7 D"는 **재고가 서로 다르다.**
+그래서 (색상, 사이즈)가 겹치면 스타일코드로 먼저 갈라 매트릭스를 여러 개 그린다.
+하나로 뭉개면 한 쪽이 조용히 사라진다.
+
+### 실패는 품절이 아니다
+
+차단·마크업 변경으로 수집이 실패하면 `error` 로 분리해 보고하고, variant 를 0개로 두지 않는다.
+실패를 품절로 읽으면 멀쩡한 상품이 판매 중지되고, 마지막 성공값으로 계속 팔면
+주문 후 매입 실패로 이어진다 (PROJECT.md §6.3 5번).
+
+---
+
 ## 사용
 
 ```bash
 npm run doctor                       # ① 엔드포인트 생존 확인 — 항상 먼저
+npm run stock  -- --watch            # 재고 조회 (색상 × 사이즈) ← 위 절 참조
 npm run signals -- --brand=coach     # 한국 인기도 신호만
 npm run catalog -- --brand=tommy --new   # 캐나다 카탈로그만
 npm run scan    -- --limit=40        # 전체 → data/ 에 리포트 생성
@@ -73,6 +134,7 @@ npm run scan    -- --limit=40        # 전체 → data/ 에 리포트 생성
 | `--fresh` | 캐시 무시 |
 | `--no-signals` | 네이버 인기도 신호 생략 |
 | `--no-kr` | 한국 가격 수집 생략 |
+| `--watch[=파일]` | 재고 조회 대상을 URL 목록으로 지정 (기본 `watchlist.txt`) |
 
 산출물은 `data/` 에 세 벌로 떨어진다 — 사람이 읽는 `.md`, 엑셀용 `.csv`, 재처리용 `.json`.
 
@@ -82,15 +144,15 @@ npm run scan    -- --limit=40        # 전체 → data/ 에 리포트 생성
 
 `doctor` 가 매번 다시 재는 값이다. 사이트 방어 정책은 수시로 바뀐다.
 
-| 브랜드 | CA 수집 | KR 수집 | 가격 비교 |
-|---|---|---|---|
-| **코치** | ✅ HTTP · 1,748건 | ✅ HTTP · 559건 | ✅ **정확 매칭 230건** |
-| **타미힐피거** | ✅ HTTP · 8,901건 | ❌ 해외 IP 차단 | CA 단독 |
-| **아크테릭스** | ✅ 브라우저 · 462건 | ❌ SPA | CA 단독 |
-| **폴로** | ❌ PerimeterX 캡차 | ✅ HTTP · 4,531건 | KR 단독 |
-| **룰루레몬** | ❌ Akamai | ❌ Akamai | 불가 |
-| **캐나다구스** | ❌ Kasada | ❌ SPA | 불가 |
-| **투미** | ❌ 연결 차단 | ⚠️ HTTP · 사이트맵 없음 | 불가 |
+| 브랜드 | CA 수집 | 재고 조회 | KR 수집 | 가격 비교 |
+|---|---|---|---|---|
+| **코치** | ✅ HTTP · 1,748건 | ✅ 색상×사이즈 | ✅ HTTP · 559건 | ✅ **정확 매칭 230건** |
+| **아크테릭스** | ✅ 브라우저 · 462건 | ✅ 색상×사이즈 | ❌ SPA | CA 단독 |
+| **타미힐피거** | ✅ HTTP · 8,901건 | ⚠️ 미검증 | ❌ 해외 IP 차단 | CA 단독 |
+| **폴로** | ❌ PerimeterX 캡차 | ❌ | ✅ HTTP · 4,531건 | KR 단독 |
+| **룰루레몬** | ❌ Akamai | ❌ | ❌ Akamai | 불가 |
+| **캐나다구스** | ❌ Kasada | ❌ | ❌ SPA | 불가 |
+| **투미** | ❌ 연결 차단 | ❌ | ⚠️ HTTP · 사이트맵 없음 | 불가 |
 
 수치는 2026-08-26 실측이다. `npm run doctor` 가 매번 다시 잰다.
 차단 페이지는 HTTP 200 으로 오기 때문에 내용까지 검사해 판정한다 —
@@ -149,11 +211,12 @@ src/
   adapters/generic.ts  사이트맵 + JSON-LD 범용 어댑터 (7개 브랜드 중 6개 커버)
   signals/             네이버 API 클라이언트 + 인기도 점수(순수 함수)
   match/               상품명 정규화 · CA↔KR 매칭(순수 함수)
+  stock/               재고 조회 — 사이즈·색상 정규화 · 변화 감지(순수 함수) · 매트릭스 리포트
   report/              markdown · csv
   pipeline.ts          오케스트레이션
 ```
 
-계산·정규화·점수·차단판별은 전부 순수 함수로 두고 단위 테스트를 붙였다 (`npm test`, 96개).
+계산·정규화·점수·차단판별·재고대조는 전부 순수 함수로 두고 단위 테스트를 붙였다 (`npm test`, 140개).
 
 ## 마크업이 바뀌면
 

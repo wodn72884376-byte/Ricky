@@ -9,7 +9,7 @@ import { Container } from './container';
 import { Bag, Box, ChevronDown, Heart, Search } from '@/components/ui/icons';
 import { AccountMenu } from './account-menu';
 import { MegaMenu } from './mega-menu';
-import { BRAND_COLUMNS, PRIMARY_NAV, brandHref } from '@/lib/nav';
+import { BRAND_COLUMNS, PRIMARY_NAV, brandHref, brandShort } from '@/lib/nav';
 import { cn } from '@/lib/utils/cn';
 
 /**
@@ -94,28 +94,30 @@ export function SiteHeader({ cartCount = 0 }: { cartCount?: number }) {
 
   const condensed = useCondensedHeader();
 
+  // 브랜드가 7개다. 좁은 데스크톱에서는 줄바꿈 대신 가로 스크롤로 흘린다 —
+  // 내비 행이 두 줄이 되면 헤더 높이가 흔들리고 스티키 계산이 깨진다.
   const brandRow = (
-    <div className="flex items-center gap-6">
+    <div className="flex min-w-0 items-center gap-6 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {BRAND_COLUMNS.map((brand) => (
         <Link
           key={brand.slug}
           href={brandHref(brand.slug)}
           className={cn(
-            'flex items-center',
+            'flex shrink-0 items-center',
             condensed ? 'h-9 text-util' : 'h-11 text-nav',
             pathname.startsWith(`/brands/${brand.slug}`)
               ? 'font-extrabold text-ink'
               : 'font-semibold text-ink',
           )}
         >
-          {brand.label}
+          {brandShort(brand)}
         </Link>
       ))}
-      <span aria-hidden="true" className="h-3 w-px bg-outline" />
-      <Link href="/guide/sizing" className={cn('flex items-center font-semibold text-ink', condensed ? 'h-9 text-util' : 'h-11 text-nav')}>
+      <span aria-hidden="true" className="h-3 w-px shrink-0 bg-outline" />
+      <Link href="/guide/sizing" className={cn('flex shrink-0 items-center font-semibold text-ink', condensed ? 'h-9 text-util' : 'h-11 text-nav')}>
         Sizing
       </Link>
-      <Link href="/guide/customs" className={cn('flex items-center font-semibold text-ink', condensed ? 'h-9 text-util' : 'h-11 text-nav')}>
+      <Link href="/guide/customs" className={cn('flex shrink-0 items-center font-semibold text-ink', condensed ? 'h-9 text-util' : 'h-11 text-nav')}>
         Customs
       </Link>
     </div>

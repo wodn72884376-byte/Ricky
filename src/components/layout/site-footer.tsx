@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { BRAND_COLUMNS, brandShort } from '@/lib/nav';
 import { Container } from './container';
 
 /**
@@ -13,10 +14,12 @@ import { Container } from './container';
 const COLUMNS = [
   {
     heading: 'SHOP',
+    // 브랜드 목록의 출처는 nav.ts 하나다 — 푸터에 다시 적으면 반드시 어긋난다
     links: [
-      { label: "Arc'teryx", href: '/brands/arcteryx' },
-      { label: 'lululemon', href: '/brands/lululemon' },
-      { label: 'Coach', href: '/brands/coach' },
+      ...BRAND_COLUMNS.map((brand) => ({
+        label: brandShort(brand),
+        href: `/brands/${brand.slug}`,
+      })),
       { label: '이번 주 입고', href: '/arrivals' },
     ],
   },

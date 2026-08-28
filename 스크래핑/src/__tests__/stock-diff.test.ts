@@ -9,6 +9,7 @@ const row = (over: Partial<StockRow> = {}): StockRow => ({
   productUrl: 'https://ca.coach.com/en/products/denim-hooded-zip-jacket/CAF56.html',
   sku: 'CAF56 KHA  M',
   gtin: null,
+  styleCode: 'CAF56',
   colour: 'Khaki',
   colourCode: 'KHA',
   size: { declared: 'M', code: 'M', width: null, label: 'M' },

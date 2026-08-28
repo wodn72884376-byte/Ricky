@@ -98,6 +98,35 @@ function renderMatrix(rows: StockRow[]): string[] {
   return out;
 }
 
+/**
+ * 한 상품의 재고를 그린다.
+ *
+ * (색상, 사이즈)가 variant 를 유일하게 지목하지 못하는 경우가 있다 —
+ * Coach 는 스타일코드가 다른 관련 상품을 한 페이지에 묶어 두어서
+ * 같은 "Black / 7 D" 가 스타일별로 재고가 다르게 두 줄 존재한다.
+ * 그럴 때는 스타일코드로 먼저 갈라 매트릭스를 여러 개 그린다.
+ * 하나로 뭉개면 한 쪽이 조용히 사라진다.
+ */
+function renderProduct(rows: StockRow[]): string[] {
+  const cellKey = (r: StockRow) => `${r.colour ?? ''}|${r.size.label}`;
+  const collides = new Set(rows.map(cellKey)).size !== rows.length;
+
+  const styles = [...new Set(rows.map((r) => r.styleCode).filter((c): c is string => Boolean(c)))];
+  if (!collides || styles.length <= 1) return renderMatrix(rows);
+
+  const out: string[] = [];
+  for (const style of styles.sort()) {
+    const group = rows.filter((r) => r.styleCode === style);
+    const prices = group.map((r) => r.priceCents).filter((x): x is number => x !== null);
+    const price = prices.length ? cad(Math.min(...prices)) : '—';
+    out.push(`**스타일 \`${style}\`** · ${price} · 재고 ${group.filter((r) => r.availability === 'in_stock').length}/${group.length}`);
+    out.push('');
+    out.push(...renderMatrix(group));
+    out.push('');
+  }
+  return out;
+}
+
 export function renderStockReport(
   results: ProductStock[],
   events: StockEvent[],
@@ -169,7 +198,7 @@ export function renderStockReport(
           ` · 색상 ${s.colours} × 사이즈 ${s.sizes || 1} · **재고 ${s.inStock}/${s.totalVariants}**`,
       );
       out.push('');
-      out.push(...renderMatrix(p.rows));
+      out.push(...renderProduct(p.rows));
       out.push('');
     }
   }

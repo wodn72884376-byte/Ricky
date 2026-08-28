@@ -34,7 +34,7 @@ export type ReviewStatus = 'pending' | 'published' | 'hidden';
 
 export type Json = string | number | boolean | null | { [key: string]: Json } | Json[];
 
-export interface BrandRow {
+export type BrandRow = {
   id: string;
   name: string;
   slug: string;
@@ -44,7 +44,7 @@ export interface BrandRow {
   created_at: string;
 }
 
-export interface ProductRow {
+export type ProductRow = {
   id: string;
   brand_id: string;
   name: string;
@@ -62,12 +62,19 @@ export interface ProductRow {
   ckfta_eligible: boolean | null;
   description: string | null;
   images: Json;
+  /** 상품 정보 제공 고시 — active 상태에는 아래 넷과 origin_country가 모두 있어야 한다 (DB check) */
+  material: string | null;
+  care: string | null;
+  manufacturer: string | null;
+  as_contact: string | null;
+  /** 한국 공식 정발가(원). 확인된 경우에만 채운다 — 추정치를 넣지 않는다 */
+  kr_retail_krw: number | null;
   status: ProductStatus;
   created_at: string;
   updated_at: string;
 }
 
-export interface ProductVariantRow {
+export type ProductVariantRow = {
   id: string;
   product_id: string;
   sku: string;
@@ -87,7 +94,7 @@ export interface ProductVariantRow {
   updated_at: string;
 }
 
-export interface InventoryRow {
+export type InventoryRow = {
   variant_id: string;
   on_hand: number;
   reserved: number;
@@ -97,7 +104,7 @@ export interface InventoryRow {
   updated_at: string;
 }
 
-export interface PurchaseRow {
+export type PurchaseRow = {
   id: string;
   variant_id: string;
   qty: number;
@@ -111,7 +118,7 @@ export interface PurchaseRow {
   created_at: string;
 }
 
-export interface SupplierListingRow {
+export type SupplierListingRow = {
   id: string;
   variant_id: string;
   brand_id: string;
@@ -133,7 +140,7 @@ export interface SupplierListingRow {
   updated_at: string;
 }
 
-export interface StockCheckRow {
+export type StockCheckRow = {
   id: number;
   listing_id: string;
   checked_at: string;
@@ -145,7 +152,7 @@ export interface StockCheckRow {
   duration_ms: number | null;
 }
 
-export interface ListingEventRow {
+export type ListingEventRow = {
   id: number;
   listing_id: string;
   type: ListingEventType;
@@ -158,7 +165,7 @@ export interface ListingEventRow {
   resolved_by: string | null;
 }
 
-export interface FxRateRow {
+export type FxRateRow = {
   id: number;
   pair: string;
   rate: number;
@@ -167,7 +174,7 @@ export interface FxRateRow {
   fetched_at: string;
 }
 
-export interface OrderRow {
+export type OrderRow = {
   id: string;
   order_no: string;
   /** 게스트 주문의 연락 수단. 회원 주문이면 null (customers.email 사용). */
@@ -196,7 +203,7 @@ export interface OrderRow {
   updated_at: string;
 }
 
-export interface OrderItemRow {
+export type OrderItemRow = {
   id: string;
   order_id: string;
   variant_id: string;
@@ -209,7 +216,7 @@ export interface OrderItemRow {
   created_at: string;
 }
 
-export interface ShipmentRow {
+export type ShipmentRow = {
   id: string;
   order_id: string;
   carrier: string | null;
@@ -226,7 +233,7 @@ export interface ShipmentRow {
   updated_at: string;
 }
 
-export interface CustomerRow {
+export type CustomerRow = {
   id: string;
   email: string;
   name: string | null;
@@ -235,26 +242,28 @@ export interface CustomerRow {
   updated_at: string;
 }
 
-export interface AdminUserRow {
+export type AdminUserRow = {
   user_id: string;
   role: 'owner' | 'operator';
   created_at: string;
 }
 
-export interface SettingRow {
+export type SettingRow = {
   key: string;
   value: Json;
   updated_at: string;
 }
 
 /** 스토어 노출용 뷰 — 원가/마진 제외, 재고 신선도 게이트 적용 */
-export interface StoreVariantRow {
+export type StoreVariantRow = {
   variant_id: string;
   product_id: string;
   sku: string;
   size: string | null;
   color: string | null;
   price_krw: number | null;
+  /** 비교가. 원가·마진과 달리 고객 노출 대상이다 */
+  kr_retail_krw: number | null;
   stock_type: StockType;
   purchasable: boolean | null;
   supplier_checked_at: string | null;
@@ -272,7 +281,7 @@ type TableDef<Row> = {
 
 /* ── 20260826000003: 게스트 주문 · 지원 · 증빙 (docs/IA.md §5) ── */
 
-export interface InquiryRow {
+export type InquiryRow = {
   id: string;
   /** `Q<YYMMDD>-<5자>`. 비회원 조회용이므로 난수 성분을 포함한다. */
   ticket_no: string;
@@ -287,7 +296,7 @@ export interface InquiryRow {
   updated_at: string;
 }
 
-export interface InquiryReplyRow {
+export type InquiryReplyRow = {
   id: string;
   inquiry_id: string;
   author: 'customer' | 'operator';
@@ -295,13 +304,13 @@ export interface InquiryReplyRow {
   created_at: string;
 }
 
-export interface WishlistRow {
+export type WishlistRow = {
   customer_id: string;
   variant_id: string;
   created_at: string;
 }
 
-export interface RestockAlertRow {
+export type RestockAlertRow = {
   id: string;
   variant_id: string;
   customer_id: string | null;
@@ -310,7 +319,7 @@ export interface RestockAlertRow {
   notified_at: string | null;
 }
 
-export interface InspectionPhotoRow {
+export type InspectionPhotoRow = {
   id: string;
   order_id: string | null;
   variant_id: string | null;
@@ -324,7 +333,7 @@ export interface InspectionPhotoRow {
   created_at: string;
 }
 
-export interface ReviewRow {
+export type ReviewRow = {
   id: string;
   /** 구매 확인된 후기만 존재하도록 order_items를 참조한다. */
   order_item_id: string;
@@ -337,7 +346,7 @@ export interface ReviewRow {
   updated_at: string;
 }
 
-export interface OrderLookupAttemptRow {
+export type OrderLookupAttemptRow = {
   id: number;
   attempted_at: string;
   /** 원문 IP를 저장하지 않는다. 애플리케이션이 salt와 함께 해시해 넣는다. */
@@ -346,7 +355,12 @@ export interface OrderLookupAttemptRow {
   succeeded: boolean;
 }
 
-export interface Database {
+/**
+ * `interface`가 아니라 `type`이어야 한다. postgrest-js의 `GenericSchema` 제약은
+ * 인덱스 시그니처 호환을 요구하는데, interface는 암묵적 인덱스 시그니처를 얻지 못한다.
+ * interface로 두면 `.select('id')` 결과가 조용히 `never`가 된다.
+ */
+export type Database = {
   public: {
     Tables: {
       admin_users: TableDef<AdminUserRow>;

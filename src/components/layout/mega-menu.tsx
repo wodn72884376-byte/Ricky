@@ -134,7 +134,7 @@ function MegaPanel({
       /* 헤더 전체 폭을 쓰되 안쪽은 지면 그리드에 정렬한다. 그림자 없이 하단 보더만. */
       className="absolute inset-x-0 top-full z-[var(--z-dropdown)] border-y border-outline bg-paper"
     >
-      <Container className="grid grid-cols-3 gap-8 py-10">
+      <Container className="grid grid-cols-2 gap-x-8 gap-y-10 py-10 md:grid-cols-3 lg:grid-cols-4">
         {BRAND_COLUMNS.map((brand) => (
           <div key={brand.slug}>
             {/* 컬럼 헤더 = 브랜드. 라틴 표기를 그대로 쓴다 (DESIGN.md §3) */}

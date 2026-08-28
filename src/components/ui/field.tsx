@@ -126,3 +126,65 @@ export function TextAreaField({ label, hint, error, required, className, ...prop
     </div>
   );
 }
+
+type SelectProps = {
+  label: string;
+  hint?: ReactNode;
+  error?: string;
+  required?: boolean;
+  className?: string;
+  options: { value: string; label: string }[];
+} & Omit<ComponentProps<'select'>, 'className' | 'required' | 'children'>;
+
+/** 선택 입력. 보더와 높이는 `Field`와 같다 — 폼 안에서 컨트롤이 달라 보이면 안 된다. */
+export function SelectField({ label, hint, error, required, className, options, ...props }: SelectProps) {
+  const id = useId();
+  const hintId = `${id}-hint`;
+  const errorId = `${id}-error`;
+  const invalid = Boolean(error);
+
+  return (
+    <div className={cn('flex flex-col gap-2', className)}>
+      <label htmlFor={id} className="text-meta font-bold text-ink">
+        {label}
+        {required && (
+          <>
+            {' '}
+            <span className="font-normal text-muted-text">(필수)</span>
+          </>
+        )}
+      </label>
+
+      {hint && (
+        <p id={hintId} className="text-meta text-muted-text">
+          {hint}
+        </p>
+      )}
+
+      <select
+        id={id}
+        required={required}
+        aria-invalid={invalid || undefined}
+        aria-describedby={cn(hint ? hintId : '', invalid ? errorId : '').trim() || undefined}
+        className={cn(
+          'h-13 rounded-ghost border bg-paper px-4 text-body text-ink',
+          'transition-colors duration-[var(--motion-quick)]',
+          invalid ? 'border-error' : 'border-outline-strong focus:border-ink',
+        )}
+        {...props}
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+
+      {invalid && (
+        <p id={errorId} role="alert" className="text-label text-error">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
