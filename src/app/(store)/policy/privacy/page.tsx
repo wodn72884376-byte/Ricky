@@ -1,6 +1,6 @@
 import { Clause, DocNote, DocShell, DocTable, RelatedDocs } from '@/components/store/prose-page';
 
-export const metadata = { title: '개인정보처리방침 — RICKY' };
+export const metadata = { title: '개인정보처리방침' };
 
 /**
  * 개인정보처리방침.

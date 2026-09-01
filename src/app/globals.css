@@ -93,9 +93,16 @@
 
   /* Aspect & fixed heights — §5 */
   --aspect-product: 4 / 5;
-  --h-gateway-mobile: 60vh;
-  --h-gateway-tablet: 70vh;
-  --h-gateway-desktop: 85vh;
+  /*
+    `vh` 가 아니라 `svh` 다 (2026-08-31). 모바일 브라우저에서 `vh` 는 주소창이 숨은
+    **큰 뷰포트** 기준이라, 화면을 꽉 채운 줄 알았던 블록이 실제로는 첫 화면보다 크고
+    아래에 붙인 것(히어로 CTA 같은)이 접히는 자리에 놓인다. `svh` 는 주소창이 보이는
+    상태가 기준이라 항상 화면 안에 들어온다. `dvh` 는 스크롤 중에 값이 변해 레이아웃이
+    흔들리므로 쓰지 않는다.
+  */
+  --h-gateway-mobile: 60svh;
+  --h-gateway-tablet: 70svh;
+  --h-gateway-desktop: 85svh;
 
   /* Elevation — §6. box-shadow 토큰은 의도적으로 존재하지 않는다. */
   --elevation-flat: none;
@@ -304,11 +311,15 @@ a {
   브라우저 기본 `zoom-in`은 OS마다 모양이 달라서 이 지면과 어긋난다.
   선 두께 1.5는 셰브런·계정 아이콘과 같다 (DESIGN.md §4).
   hotspot은 원의 중심(14 14)에 둔다 — 커서 끝이 아니라 원 가운데가 가리키는 지점이다.
+
+  **원의 채움은 40%다** (2026-08-31 운영자 요청). 0.9는 사진 위에 흰 원반을 얹어서
+  보려는 지점을 가렸다 — 커서는 사진을 가리키는 물건이지 덮는 물건이 아니다.
+  테두리와 +는 불투명하게 남긴다. 흰 사진 위에서 원반이 사라져도 그 둘이 커서를 지탱한다.
 */
 .cursor-zoom-ricky {
   cursor: url("data:image/svg+xml;utf8,\
 <svg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'>\
-<circle cx='14' cy='14' r='12' fill='rgba(255,255,255,0.9)' stroke='%23000000' stroke-width='1.5'/>\
+<circle cx='14' cy='14' r='12' fill='rgba(255,255,255,0.4)' stroke='%23000000' stroke-width='1.5'/>\
 <path d='M14 9v10M9 14h10' stroke='%23000000' stroke-width='1.5' stroke-linecap='round'/>\
 </svg>") 14 14, zoom-in;
 }

@@ -13,7 +13,6 @@
 | 03 | [03-products-slug.md](03-products-slug.md) | `/products/[slug]` | PDP-TEMPLATE §2 구조 준수 |
 | 04 | [04-cart.md](04-cart.md) | `/cart` | 합산과세 안내 |
 | 05 | [05-checkout.md](05-checkout.md) | `/checkout` | PCCC · DDU 분리 표기 |
-| 06 | [06-orders-lookup.md](06-orders-lookup.md) | `/orders/lookup` | 열거 공격 방어가 디자인을 규정 |
 | 07 | [07-support.md](07-support.md) | `/support` | FAQ + 1:1 문의 |
 | 08 | [08-admin.md](08-admin.md) | `/admin` | register=product. semantic 색 없음 |
 | 09 | [09-admin-products-new.md](09-admin-products-new.md) | `/admin/products/new` | 빌드 순서 1번 |
@@ -57,7 +56,6 @@
 | `/products/[slug]` | 후기 0건 → **섹션 통째 비움** | 세액 재계산 · 담기 중 | 인라인/토스트/404/차단 | 헤더 카운트 증가 (토스트 없음) | 4:5 블록, 가격 `--` |
 | `/cart` | `장바구니가 비어있어요` + 고스트 | 수량·삭제·재검증 | 상한/재계산/저장소 손상 | 즉시 갱신, 토스트 없음 | 200ms 미만이면 생략 |
 | `/checkout` | `/cart`로 리다이렉트 | 세액·재고·결제 3층 | **인라인 6종 + 폼레벨 5종** | 완료 화면으로 전환 | 요약만, 폼은 제외 |
-| `/orders/lookup` | 빈 폼이 정상 | **최소 400ms 강제** (타이밍 방어) | **실패 응답을 구분하지 않음** | 즉시 라우트 전환 | **없음** (정적 폼) |
 | `/support` | FAQ 0건 / 섹션 제거 | 카테고리 전환 · 제출 | 인라인 4종 + FAQ 페치 | 폼 → 접수번호 블록 교체 | FAQ 행만 |
 | `/admin` | 큐 0건 → **블록 제거** | 폴링은 스켈레톤으로 안 돌아감 | 블록 단위 격리 | 큐에서 사라짐 = 확인 | 숫자 전부 `--` |
 | `/admin/products/new` | 빈 폼 + 수치 `--` | 업로드·재산출·제출 | **인라인 8 + 경고 4 (구분)** | 라우트 전환 + 연속 등록 | **없음** (신규 폼) |

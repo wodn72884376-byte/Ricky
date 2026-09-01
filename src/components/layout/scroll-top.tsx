@@ -16,7 +16,9 @@ import { cn } from '@/lib/utils/cn';
  * §4가 반전 블랙을 "화면당 하나"로 제한하지만 그건 **구매 CTA 경쟁**에 대한 규칙이고,
  * 이건 지면 밖에 떠 있는 유틸리티다 — 상품 상세에서도 구매 CTA와 겹쳐 읽히지 않는다.
  *
- * `z-floating(300)`이며 `z-sheet(500)`보다 낮다: 시트가 열리면 가려진다 (DESIGN.md §5).
+ * **위치는 여기서 정하지 않는다.** 카카오톡 문의와 세로로 쌓이므로 고정 좌표는
+ * `floating-controls.tsx` 가 한 곳에서 잡는다 — 둘이 각자 좌표를 들면 하나를 옮길 때
+ * 다른 하나가 따라오지 않는다.
  */
 export function ScrollTop() {
   return (
@@ -32,8 +34,6 @@ export function ScrollTop() {
         })
       }
       className={cn(
-        // 모서리에서 한 칸 더 안쪽으로. 가장자리에 붙으면 스크롤바·제스처 영역과 겹친다.
-        'fixed bottom-10 right-10 z-[var(--z-floating)]',
         'flex size-11 items-center justify-center',
         'rounded-inverted bg-ink text-paper',
         'hover:bg-[#0a0a0a]',

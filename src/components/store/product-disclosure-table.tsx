@@ -1,4 +1,7 @@
 import type { CatalogProduct } from '@/lib/catalog';
+import { countryLabel } from '@/lib/customs/country';
+import { AS_CONTACT, PURCHASE_ROUTE } from '@/lib/disclosure';
+import { cn } from '@/lib/utils/cn';
 
 /**
  * 상품 정보 및 제공 고시.
@@ -27,11 +30,12 @@ export function ProductDisclosureTable({ product }: { product: CatalogProduct })
     { label: '크기', value: product.sizes.join(', ') },
     { label: '제조자', value: product.manufacturer },
     // 원산지는 실물 라벨 기준이다. 브랜드 국적으로 추정하지 않는다 (PROJECT.md §3.3)
-    { label: '제조국', value: product.originCountry, note: '실물 라벨 확인 후 표기' },
+    { label: '제조국', value: countryLabel(product.originCountry), note: '실물 라벨 확인 후 표기' },
     { label: '취급 시 주의사항', value: product.care },
     { label: '품질보증기준', value: '관련 법 및 소비자분쟁해결기준에 따름' },
     { label: '판매자', value: 'RICKY — 캐나다 알버타 소재 독립 사업자' },
-    { label: 'A/S 책임자 및 연락처', value: null },
+    { label: '구매 경로', value: PURCHASE_ROUTE },
+    { label: 'A/S 책임자 및 연락처', value: AS_CONTACT },
   ];
 
   return (
@@ -41,7 +45,8 @@ export function ProductDisclosureTable({ product }: { product: CatalogProduct })
         {rows.map((row) => (
           <div key={row.label} className="flex gap-4 border-b border-outline py-3 text-util">
             <dt className="w-32 shrink-0 text-muted-text md:w-44">{row.label}</dt>
-            <dd className={row.value ? 'text-ink' : 'text-muted-text'}>
+            {/* A/S 안내는 여러 줄이다. 줄바꿈을 살리지 않으면 네 문장이 한 덩어리가 된다. */}
+            <dd className={cn('whitespace-pre-line leading-relaxed', row.value ? 'text-ink' : 'text-muted-text')}>
               {row.value ?? (
                 <>
                   {/* 지어내지 않는다. 비어 있다는 사실을 그대로 쓴다. */}
@@ -54,7 +59,7 @@ export function ProductDisclosureTable({ product }: { product: CatalogProduct })
         ))}
       </dl>
       <p className="mt-4 text-meta text-muted-text">
-        전자상거래 등에서의 상품 정보 제공에 관한 고시에 따른 표기예요.
+        전자상거래 등에서의 상품 정보 제공에 관한 고시에 따른 표기입니다.
       </p>
     </section>
   );

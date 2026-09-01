@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useId, useRef, useState } from 'react';
+import type { Session } from '@supabase/supabase-js';
 import { createClientIfConfigured } from '@/lib/supabase/client';
 import { hasSupabaseEnv } from '@/lib/env';
 import { ChevronDown, Lock, PersonOutline } from '@/components/ui/icons';
@@ -28,7 +29,14 @@ export function AccountMenu({ iconsOnly = false }: { iconsOnly?: boolean } = {})
   // 환경 설정 여부는 렌더 시점에 이미 안다(빌드 때 인라인된다).
   // effect에서 setState로 알릴 일이 아니라 초기값이다.
   const configured = hasSupabaseEnv();
+  /*
+    로그인 여부는 **세션의 유무**로 판단한다. 이메일로 판단하면 안 된다 —
+    네이버·카카오는 이메일을 주지 않을 수 있어서(20260829000008_members_only.sql B)
+    로그인한 회원이 로그아웃 상태로 보인다. 이메일은 있으면 보여주는 부가 정보다.
+  */
+  const [signedIn, setSignedIn] = useState(false);
   const [email, setEmail] = useState<string | null>(null);
+  const [provider, setProvider] = useState<string | null>(null);
   const [ready, setReady] = useState(!configured);
   const [open, setOpen] = useState(false);
   const menuId = useId();
@@ -43,15 +51,21 @@ export function AccountMenu({ iconsOnly = false }: { iconsOnly?: boolean } = {})
 
     let alive = true;
 
+    const apply = (session: Session | null) => {
+      setSignedIn(session !== null);
+      setEmail(session?.user.email ?? null);
+      // 이메일이 없을 때 드롭다운에 "무엇으로 로그인했는지"라도 밝히기 위해 들고 있는다.
+      setProvider((session?.user.app_metadata.provider as string | undefined) ?? null);
+      setReady(true);
+    };
+
     supabase.auth.getSession().then(({ data }) => {
       if (!alive) return;
-      setEmail(data.session?.user.email ?? null);
-      setReady(true);
+      apply(data.session);
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setEmail(session?.user.email ?? null);
-      setReady(true);
+      apply(session);
     });
 
     return () => {
@@ -84,11 +98,12 @@ export function AccountMenu({ iconsOnly = false }: { iconsOnly?: boolean } = {})
 
   // 세션 확인 전에는 자리만 잡아둔다. 로그인/로그아웃 상태가 깜빡이지 않게.
   if (!ready) return <div aria-hidden="true" className="h-11 w-24" />;
-  if (!email) return <SignedOutActions iconsOnly={iconsOnly} />;
+  if (!signedIn) return <SignedOutActions iconsOnly={iconsOnly} />;
 
   return (
     <AccountDropdown
       email={email}
+      provider={provider}
       open={open}
       onToggle={() => setOpen((v) => !v)}
       onClose={() => setOpen(false)}
@@ -103,7 +118,7 @@ export function AccountMenu({ iconsOnly = false }: { iconsOnly?: boolean } = {})
 /**
  * 비로그인 상태의 어포던스. **하나다** (2026-08-28 운영자 요청).
  *
- * 로그인이 매직링크라 가입과 로그인이 같은 동작이다 — 버튼 두 개는 같은 곳으로 가는
+ * 로그인이 소셜뿐이라 가입과 로그인이 같은 동작이다 — 버튼 두 개는 같은 곳으로 가는
  * 두 개의 문이었고, 고르게 만들 이유가 없었다. 반전 블랙을 쓰지 않는다: 그건 구매 CTA의 몫이다.
  */
 export function SignedOutActions({ iconsOnly = false }: { iconsOnly?: boolean }) {
@@ -128,8 +143,16 @@ export function SignedOutActions({ iconsOnly = false }: { iconsOnly?: boolean })
 /**
  * 표현 전용. 세션을 모르므로 프리뷰에서 열린 상태로 그대로 렌더할 수 있다.
  */
+/** 이메일이 없는 계정에 무엇으로 로그인했는지라도 밝힌다. */
+const PROVIDER_KO: Record<string, string> = {
+  google: '구글 계정',
+  kakao: '카카오 계정',
+  'custom:naver': '네이버 계정',
+};
+
 export function AccountDropdown({
   email,
+  provider = null,
   open,
   onToggle,
   onClose,
@@ -138,7 +161,9 @@ export function AccountDropdown({
   firstItemRef,
   menuId,
 }: {
-  email: string;
+  email: string | null;
+  /** 이메일이 없을 때만 쓰인다 (네이버·카카오) */
+  provider?: string | null;
   open: boolean;
   onToggle: () => void;
   onClose: () => void;
@@ -186,8 +211,14 @@ export function AccountDropdown({
             'border border-outline bg-paper py-2',
           )}
         >
-          {/* 누구로 로그인했는지 먼저 밝힌다 */}
-          <p className="truncate px-4 pb-2 text-meta text-muted-text">{email}</p>
+          {/*
+            누구로 로그인했는지 먼저 밝힌다. 이메일이 없는 계정(네이버·카카오)에서는
+            제공자 이름으로 대신한다 — 빈 줄을 남기면 여백이 어긋나고, 무엇보다
+            "내가 누구로 들어와 있는지"를 알 수 없다.
+          */}
+          <p className="truncate px-4 pb-2 text-meta text-muted-text">
+            {email ?? (provider ? `${PROVIDER_KO[provider] ?? provider}으로 로그인` : '로그인됨')}
+          </p>
 
           {MENU.map((item, i) => (
             <Link

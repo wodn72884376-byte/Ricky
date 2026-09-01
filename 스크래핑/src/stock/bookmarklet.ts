@@ -16,6 +16,37 @@
 
 export const CAPTURE_VERSION = 2;
 
+/**
+ * 북마클릿에 심긴 카탈로그의 지문.
+ *
+ * 북마클릿은 등록 상품 목록을 **안에 박아** 배포한다. 그래서 상품을 추가해도
+ * 브라우저의 북마크는 옛 목록 그대로다 — 새 상품이 수집에서 빠지는데
+ * **오류 없이 조용히** 그렇게 된다(캐나다구스 8건이 그럴 뻔했다).
+ *
+ * 캡처마다 이 값을 실어 두면, import 할 때 지금 카탈로그와 대조해
+ * "북마클릿이 낡았다"고 말해 줄 수 있다. 사람이 기억할 일이 아니다.
+ */
+export function catalogFingerprint(
+  codesByHost: CodesByHost,
+  slugsByHost: SlugsByHost = {},
+): string {
+  const parts: string[] = [];
+  for (const host of Object.keys(codesByHost).sort()) {
+    parts.push(`${host}:${[...codesByHost[host]!].sort().join(',')}`);
+  }
+  for (const host of Object.keys(slugsByHost).sort()) {
+    parts.push(`${host}~${[...slugsByHost[host]!].sort().join(',')}`);
+  }
+  // 짧고 안정적이면 된다 — 보안 용도가 아니라 "달라졌나"만 본다 (FNV-1a)
+  let h = 0x811c9dc5;
+  const text = parts.join('|');
+  for (let i = 0; i < text.length; i += 1) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(16).padStart(8, '0');
+}
+
 /** 화면에서 읽은 옵션 하나 (사이즈 버튼 등) */
 export type DomOption = {
   /** 버튼에 적힌 값. "XS", "9.5" 등 */
@@ -58,6 +89,9 @@ export type SizeProbe = {
 };
 
 /** 목록 수집에서 상품 1건 */
+/** 제목과 본문 한 짝. 해석하지 않은 원문이다. */
+export type DocSection = { h: string; t: string };
+
 export type BatchItem = {
   url: string;
   title: string;
@@ -70,6 +104,16 @@ export type BatchItem = {
 /** 북마클릿이 내려받는 파일의 모양 */
 export type StockCapture = {
   v: number;
+  /** 무엇이 만든 캡처인가. 확장만 'extension' 을 싣는다. */
+  source?: string;
+  /** 확장이 열기로 되어 있던 페이지 목록의 지문. 북마클릿 캡처에는 없다. */
+  targetsFp?: string;
+  /**
+   * 이 캡처를 만든 북마클릿에 심겨 있던 카탈로그의 지문.
+   * 지금 카탈로그와 다르면 북마클릿이 낡은 것이다 — 새로 등록한 상품이
+   * 수집에서 조용히 빠진다. 목록수집에만 있다(단건 수집은 카탈로그를 안 쓴다).
+   */
+  catalogFp?: string;
   url: string;
   title: string;
   capturedAt: string;
@@ -86,6 +130,8 @@ export type StockCapture = {
   probe?: SizeProbe[];
   /** 목록 수집분. 있으면 이 파일 하나에 상품 여러 건이 들어 있다. */
   batch?: BatchItem[];
+  /** 화면에서 걷어 온 제목·본문 짝. 고시 항목(소재·취급주의·원산지)을 여기서 캔다. */
+  sections?: DocSection[];
 };
 
 export const CAPTURE_FILE_PREFIX = 'ricky-stock-';
@@ -102,6 +148,76 @@ export const CAPTURE_FILE_PREFIX = 'ricky-stock-';
  * 구매 불가 판정은 disabled / aria-disabled / 클래스명 / 취소선 중 하나라도 걸리면 불가로 본다.
  * 애매하면 "가능"이 아니라 "불가"로 기울여야 안전하다 — 없는 재고를 팔면 안 되기 때문이다.
  */
+/**
+ * 화면 읽기 코드를 다른 실행 경로에 내준다.
+ *
+ * 크롬 확장이 **같은 코드**를 쓰기 위해서다. 북마클릿과 확장이 추출 규칙을 각자
+ * 들고 있으면 두 경로의 결과가 조용히 갈리고, 사고가 났을 때 한쪽만 고치게 된다.
+ * 이 프로젝트에서 잡은 사고(없는 세일 43%, 미편성을 품절로 그리기, 색상 클릭이
+ * 다른 상품으로 이동)는 전부 추출 규칙에 있었다 — 한 벌로 둔다.
+ */
+/**
+ * 고시 항목(소재·취급주의·원산지)이 들어 있는 화면 구획을 걷어 온다.
+ *
+ * 확장은 6시간마다 이 페이지들을 이미 연다. 같은 방문에서 함께 읽으면
+ * **추가 요청이 0** 이다 — 고시 항목 때문에 남의 사이트를 또 두드릴 이유가 없다.
+ *
+ * 여기서 해석하지 않는다. 제목과 본문을 짝지어 원문 그대로 담고, 무엇이 소재이고
+ * 무엇이 취급주의인지는 서버가 정한다 — 브랜드마다 표기가 다른데 규칙을 브라우저와
+ * 서버 두 곳에 두면 조용히 갈린다(북마클릿이 해석하지 않는 것과 같은 이유).
+ */
+const READ_SECTIONS = `
+function readSections(doc){
+  function txt(e){return (e.textContent||'').replace(/\\s+/g,' ').trim()}
+  var out=[],seen={};
+  function push(h,t){
+    h=(h||'').slice(0,80); t=(t||'').slice(0,900);
+    if(!h||!t||t.length<3)return;
+    var k=h+'|'+t.slice(0,40);
+    if(seen[k])return; seen[k]=1;
+    if(out.length<40)out.push({h:h,t:t});
+  }
+
+  // 정의 목록: <dt>소재</dt><dd>…</dd>
+  var dts=doc.querySelectorAll('dt');
+  for(var i=0;i<dts.length;i++){
+    var dd=dts[i].nextElementSibling;
+    if(dd&&dd.tagName==='DD')push(txt(dts[i]),txt(dd));
+  }
+
+  // 접이식: <details><summary>취급 방법</summary>…</details>
+  var ds=doc.querySelectorAll('details');
+  for(var j=0;j<ds.length;j++){
+    var sm=ds[j].querySelector('summary');
+    if(!sm)continue;
+    var body=txt(ds[j]).slice(txt(sm).length);
+    push(txt(sm),body);
+  }
+
+  /*
+   * 제목 + 바로 뒤 본문. 아코디언을 details 로 안 만든 사이트가 많다.
+   * 제목 자신의 텍스트는 빼야 한다 — 안 그러면 제목이 본문 앞에 붙어 들어온다.
+   */
+  var hs=doc.querySelectorAll('h2,h3,h4,h5,summary,button[aria-expanded]');
+  for(var k=0;k<hs.length;k++){
+    var head=txt(hs[k]);
+    if(!head||head.length>80)continue;
+    var sib=hs[k].nextElementSibling,body='';
+    for(var n=0;n<3&&sib;n++){ body+=' '+txt(sib); sib=sib.nextElementSibling; }
+    body=body.trim();
+    if(!body){
+      var par=hs[k].parentElement;
+      if(par){ var whole=txt(par); body=whole.slice(head.length).trim(); }
+    }
+    push(head,body);
+  }
+  return out;
+}
+`;
+
+export const collectorSource = () =>
+  `${READ_DOC}\n${READ_COLOURS}\n${READ_SECTIONS}`;
+
 const READ_DOC = `
 function readDoc(doc,win){
   /*
@@ -110,7 +226,16 @@ function readDoc(doc,win){
    * 사이즈로 오인한다(실측: 랄프로렌에서 "1" 이 매번 첫 사이즈로 잡혔다).
    * 룰루레몬처럼 "M/L", "XXS/XS" 로 묶어 파는 경우도 사이즈다.
    */
-  var SZ=/^(XXXS|XXS|XS|S|M|L|XL|XXL|XXXL|(XXS|XS|S|M|L|XL|XXL)\\/(XS|S|M|L|XL|XXL)|([5-9]|1[0-5])(\\.5)?)$/i;
+  var SZ=/^(XXXS|XXS|XS|S|M|L|XL|XXL|XXXL|[2-4]XL|(XXS|XS|S|M|L|XL|XXL)\\/(XS|S|M|L|XL|XXL)|([5-9]|1[0-5])(\\.5)?)$/i;
+  /*
+   * 같은 사이즈를 사이트마다 다르게 쓴다 — 캐나다구스는 2XL·3XL, JSON-LD 는 XXL·XXXL.
+   * 표기를 안 맞추면 화면에서 읽은 값이 JSON-LD 와 다른 줄로 들어가고,
+   * **화면이 재고 있다고 한 사이즈가 품절로 남는다**(실측: Garson Vest S).
+   */
+  function normSize(x){
+    var m=/^([2-4])XL$/i.exec(x);
+    return m?new Array(Number(m[1])+1).join('X')+'L':x;
+  }
   function txt(e){return (e.textContent||'').replace(/\\s+/g,' ').trim()}
   function flagged(e){
     if(!e||!e.getAttribute)return false;
@@ -138,9 +263,17 @@ function readDoc(doc,win){
       if(f&&flagged(doc.getElementById(f)))return true;
     }catch(err){}
     try{
-      var st=win.getComputedStyle(e);
-      if(st.textDecorationLine&&st.textDecorationLine.indexOf('line-through')>=0)return true;
-      if(parseFloat(st.opacity)<0.5)return true;
+      /*
+       * 취소선이 버튼 자신이 아니라 안쪽 span 에 걸린 사이트가 있다.
+       * 자신만 보면 품절이 재고 있음으로 읽힌다 — 없는 재고를 만드는 쪽이라 더 나쁘다.
+       */
+      var nodes=[e].concat([].slice.call(e.querySelectorAll?e.querySelectorAll('*'):[],0,4));
+      for(var q=0;q<nodes.length;q++){
+        var st=win.getComputedStyle(nodes[q]);
+        if(!st)continue;
+        if(st.textDecorationLine&&st.textDecorationLine.indexOf('line-through')>=0)return true;
+        if(nodes[q]===e&&parseFloat(st.opacity)<0.5)return true;
+      }
     }catch(err){}
     return false;
   }
@@ -158,7 +291,7 @@ function readDoc(doc,win){
     if(!t||t.length>5||!SZ.test(t))continue;
     if(seen[t.toUpperCase()])continue;
     seen[t.toUpperCase()]=1;
-    sizes.push({label:t.toUpperCase(),available:!unavail(e),selected:selected(e)});
+    sizes.push({label:normSize(t.toUpperCase()),available:!unavail(e),selected:selected(e)});
     /*
      * 품절 판정이 틀렸을 때 원인을 알 수 있도록 후보 요소의 속성을 그대로 담는다.
      * 사이트 마크업을 직접 볼 수 없는 상태에서 규칙을 고치려면 이 원본이 필요하다.
@@ -178,6 +311,17 @@ function readDoc(doc,win){
     if(!selected(cs[j]))continue;
     var lbl=cs[j].getAttribute('aria-label')||cs[j].getAttribute('title')||txt(cs[j]);
     if(lbl){col=lbl.replace(/^(colou?r:?\\s*)/i,'').trim();break;}
+  }
+  /*
+   * 스와치가 선택 표시를 안 주는 사이트가 있다. 그러면 색상을 모르고, 색상을 모르면
+   * 화면에서 읽은 사이즈를 **어느 줄에 합칠지 몰라 통째로 버린다** — 실측:
+   * 캐나다구스에서 화면이 재고 있다고 한 사이즈가 품절로 남았다.
+   * 화면은 "Colour: Volcano" 라고 적어 두므로 그 문구를 읽는다.
+   */
+  if(!col){
+    var body=txt(doc.body).slice(0,4000);
+    var m=/(?:colou?r|색상)\\s*[::]\\s*([A-Za-z가-힣][A-Za-z가-힣 '\\/-]{1,28})/i.exec(body);
+    if(m)col=m[1].trim().replace(/\\s+(size|사이즈).*$/i,'');
   }
   var n=doc.querySelectorAll('script[type="application/ld+json"]');
   return {jsonld:[].map.call(n,function(s){return s.textContent}),
@@ -282,10 +426,26 @@ function isProduct(u){
  */
 const CODE_IN_URL = `
 function codeInUrl(u,code){
-  var U=u.toUpperCase(), C=String(code).toUpperCase();
+  var U=(u.split('?')[0]||u).toUpperCase(), C=String(code).toUpperCase();
   if(U.indexOf('/'+C+'.HTML')>=0)return true;
   if(/^X[0-9]{6,}$/.test(C)&&U.indexOf('-'+C.slice(-4))>=0)return true;
+  /*
+   * 캐나다구스는 코드가 경로 조각의 꼬리다 — /macmillan-parka-2080MB.html
+   * 2080M 이 2080MB 의 접두사이므로 .HTML 까지 붙여 경계를 맞춘다.
+   * 안 그러면 Classic 코드가 Black 페이지에도 걸린다.
+   */
+  if(/^[0-9]{4}[A-Z]{0,2}$/.test(C)&&U.indexOf('-'+C+'.HTML')>=0)return true;
   return false;
+}
+function slugInUrl(u,slug){
+  /*
+   * 앞뒤에 구분자를 붙여 **경계**를 맞춘다.
+   * 안 붙이면 'mens-fast-and-free-trail-running-vest' 가
+   * 'wo|mens-fast-and-free-trail-running-vest' 안에서 걸려
+   * 남성 상품이 여성 URL 에 붙는다 (실측: 룰루레몬은 남녀 이름이 똑같다).
+   */
+  var N='-'+String(u).toLowerCase().replace(/[^a-z0-9]+/g,'-')+'-';
+  return N.indexOf('-'+slug+'-')>=0;
 }`;
 
 /**
@@ -344,6 +504,25 @@ export function bookmarkletSource(): string {
  * 코드가 없는 브랜드에 코드 필터를 걸면 전부 걸러져 0건이 된다.
  * 그래서 "코드 목록이 비어 있다"는 "거르지 말라"는 뜻으로 다룬다.
  */
+/**
+ * 확장이 **실제로 열 페이지 목록**의 지문.
+ *
+ * `catalogFingerprint` 로는 부족하다 — 그건 등록 상품이 바뀌었는지만 본다.
+ * 실측 사고: 캐나다구스 URL 을 카탈로그에 새로 채워 확장 대상이 15 → 29페이지로
+ * 늘었는데, 상품 목록 자체는 그대로라 지문이 변하지 않았다. 크롬에 옛 확장이
+ * 얹힌 채로 캐나다구스 8건이 통째로 빠졌고 **아무 경고도 뜨지 않았다.**
+ * 조용히 빠지는 게 가장 나쁘므로 대상 목록도 따로 본다.
+ */
+export function targetsFingerprint(urls: string[]): string {
+  let h = 0x811c9dc5;
+  const text = [...urls].sort().join('|');
+  for (let i = 0; i < text.length; i += 1) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(16).padStart(8, '0');
+}
+
 export type CodesByHost = Record<string, string[]>;
 
 /**
@@ -354,9 +533,30 @@ export type CodesByHost = Record<string, string[]>;
  */
 export type NamesByHost = Record<string, string[]>;
 
+/**
+ * 호스트별 상품명 슬러그. **코드가 하나도 없는 브랜드의 필터**다.
+ *
+ * 룰루레몬은 상품코드 체계가 없어 코드 필터를 걸 수 없고, 그렇다고 안 거르면
+ * 목록 전체(실측: 81건)를 8분에 걸쳐 받아 놓고 4건만 쓰게 된다.
+ * 룰루레몬 URL 은 상품명이 그대로 슬러그다 —
+ * `/en-ca/p/equipment/Womens-Fast-and-Free-Trail-Running-Vest/_/prod11890062`
+ * 그래서 이름으로 거를 수 있다.
+ */
+export type SlugsByHost = Record<string, string[]>;
+
+/** 상품명 → URL 에서 찾을 슬러그. 아포스트로피는 URL 에서 사라진다(Men's → Mens). */
+export function nameSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/['\u2019]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
 export function batchBookmarkletSource(
   codesByHost: CodesByHost = {},
   namesByHost: NamesByHost = {},
+  slugsByHost: SlugsByHost = {},
 ): string {
   const body = `
     ${READ_DOC}
@@ -364,10 +564,12 @@ export function batchBookmarkletSource(
     ${DOWNLOAD}
     ${IS_PRODUCT}
     ${CODE_IN_URL}
+    var CATALOG_FP=${JSON.stringify(catalogFingerprint(codesByHost, slugsByHost))};
     var BY_HOST=${JSON.stringify(codesByHost)};
     var NAME_HOST=${JSON.stringify(namesByHost)};
-    var WANT=[],WANT_NAMES=[];
-    for(var hk in BY_HOST){ if(location.hostname.indexOf(hk)>=0){ WANT=BY_HOST[hk]; WANT_NAMES=NAME_HOST[hk]||[]; break; } }
+    var SLUG_HOST=${JSON.stringify(slugsByHost)};
+    var WANT=[],WANT_NAMES=[],WANT_SLUGS=[];
+    for(var hk in BY_HOST){ if(location.hostname.indexOf(hk)>=0){ WANT=BY_HOST[hk]; WANT_NAMES=NAME_HOST[hk]||[]; WANT_SLUGS=SLUG_HOST[hk]||[]; break; } }
     var MAX=60, GAP=1200, RENDER=6000;
     var langM=location.pathname.match(/^\\/([a-z]{2})\\//);
     var lang=langM?langM[1]:null;
@@ -391,12 +593,13 @@ export function batchBookmarkletSource(
       alert('이 페이지에서 상품 링크를 찾지 못했습니다.\\n카테고리·검색결과·전체보기 페이지에서 눌러 주세요.');
       return;
     }
+    var candUrls=urls.slice(0);
     /*
      * 카탈로그에 등록된 상품만 남긴다.
      * 전체 목록에는 수백 건이 있지만 우리가 파는 건 그중 일부다.
      * 다 받으면 시간만 걸리고 어차피 대조 단계에서 버려진다.
      */
-    var found=urls.length, hitCodes={};
+    var found=urls.length, hitCodes={}, filtered=false;
     if(WANT.length){
       var keep=[];
       for(var k=0;k<urls.length;k++){
@@ -404,19 +607,46 @@ export function batchBookmarkletSource(
           if(codeInUrl(urls[k],WANT[c])){ keep.push(urls[k]); hitCodes[WANT[c]]=1; break; }
         }
       }
-      urls=keep;
-      if(!urls.length){
-        alert('이 페이지에서 카탈로그 상품을 찾지 못했습니다.\\n'+
-          '상품 링크는 '+found+'건 보이는데 등록된 상품과 겹치는 게 없습니다.\\n\\n'+
-          '이 브랜드에 등록된 상품 '+WANT_NAMES.length+'건:\\n'+
-          (WANT_NAMES.length?'  '+WANT_NAMES.join('\\n  '):'  (없음)')+'\\n\\n'+
-          '찾는 상품이 이 목록에 없으면 카탈로그에 등록되지 않은 것입니다.\\n'+
-          '있는데도 안 걸렸다면 전체보기 목록에서 끝까지 스크롤했는지 확인해 주세요.');
-        return;
+      urls=keep; filtered=true;
+    } else if(WANT_SLUGS.length){
+      /*
+       * 코드 체계가 없는 브랜드(룰루레몬)는 상품명 슬러그로 거른다.
+       * 안 거르면 목록 전체를 받는다 — 실측 81건 · 8분 · 그중 쓸 건 4건이었다.
+       */
+      var kept=[];
+      for(var k2=0;k2<urls.length;k2++){
+        var got=false;
+        for(var g=0;g<WANT_SLUGS.length;g++){
+          if(!slugInUrl(urls[k2],WANT_SLUGS[g]))continue;
+          /*
+           * 여기서 break 하면 안 된다. 카탈로그는 룰루레몬 남녀 조끼를 둘 다
+           * 'Fast and Free Trail Running Vest' 로 들고 있어 슬러그가 똑같다.
+           * 첫 건만 표시하면 나머지 하나가 늘 "못 찾음" 으로 보고된다.
+           */
+          hitCodes[WANT_NAMES[g]]=1;
+          got=true;
+        }
+        if(got)kept.push(urls[k2]);
       }
+      urls=kept; filtered=true;
+    }
+    if(filtered&&!urls.length){
+      /*
+       * 이름이 사이트와 조금만 달라도 0건이 된다. 그럴 때 막다른 길로 두지 않고
+       * 목록 전체를 받을 선택지를 준다 — 대조는 나중에 사람이 해도 된다.
+       */
+      var ask='이 페이지에서 카탈로그 상품을 찾지 못했습니다.\\n'+
+        '상품 링크는 '+found+'건 보이는데 등록된 상품과 겹치는 게 없습니다.\\n\\n'+
+        '이 브랜드에 등록된 상품 '+WANT_NAMES.length+'건:\\n'+
+        (WANT_NAMES.length?'  '+WANT_NAMES.join('\\n  '):'  (없음)')+'\\n\\n'+
+        '찾는 상품이 이 목록에 없으면 카탈로그에 등록되지 않은 것입니다.\\n'+
+        '있는데도 안 걸렸다면 전체보기 목록에서 끝까지 스크롤했는지 확인해 주세요.\\n\\n'+
+        '그래도 이 목록 전체를 받아 둘까요? (나중에 이름으로 대조합니다)';
+      if(!confirm(ask))return;
+      urls=candUrls; filtered=false;
     }
     var n=Math.min(urls.length,MAX);
-    var msg=WANT.length
+    var msg=filtered
       ? '상품 '+found+'건 중 카탈로그 상품 '+urls.length+'건을 찾았습니다.\\n'
       : '상품 '+urls.length+'건을 찾았습니다.\\n';
     if(!confirm(msg+n+'건을 수집합니다. 약 '+Math.ceil(n*(RENDER+GAP)/60000)+'분 걸립니다.\\n\\n창을 닫지 말고 기다려 주세요.'))return;
@@ -498,16 +728,18 @@ export function batchBookmarkletSource(
     function step(){
       if(idx>=urls.length){
         box.textContent='완료 — 파일을 저장합니다';
-        if(WANT.length){
+        var LOOKED=WANT.length?WANT:(WANT_SLUGS.length?WANT_NAMES:[]);
+        if(LOOKED.length){
           var missed=[];
-          for(var c=0;c<WANT.length;c++)if(!hitCodes[WANT[c]])missed.push(WANT[c]);
+          for(var c=0;c<LOOKED.length;c++)if(!hitCodes[LOOKED[c]])missed.push(LOOKED[c]);
           if(missed.length)setTimeout(function(){
             alert('수집 완료 '+urls.length+'건.\\n\\n이 페이지에서 못 찾은 카탈로그 상품 '+missed.length+'건:\\n'+
               missed.slice(0,15).join(', ')+(missed.length>15?' …':'')+
               '\\n\\n다른 카테고리에 있거나 판매 종료된 상품입니다.');
           },1500);
         }
-        download({v:${CAPTURE_VERSION},url:location.href,title:document.title,
+        download({v:${CAPTURE_VERSION},catalogFp:CATALOG_FP,
+          url:location.href,title:document.title,
           capturedAt:new Date().toISOString(),jsonld:[],batch:out});
         setTimeout(function(){box.remove()},3000);
         return;
@@ -534,6 +766,7 @@ export function batchBookmarkletSource(
 export function bookmarkletPage(
   codesByHost: CodesByHost = {},
   namesByHost: NamesByHost = {},
+  slugsByHost: SlugsByHost = {},
 ): string {
   const attr = (s: string) =>
     s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -570,7 +803,7 @@ export function bookmarkletPage(
   <p><strong>아래 두 버튼을 북마크바로 끌어다 놓으세요.</strong>
      북마크바가 안 보이면 <code>Ctrl+Shift+B</code>.</p>
   <p style="margin:20px 0">
-    <a class="drag alt" href="${attr(batchBookmarkletSource(codesByHost, namesByHost))}">RICKY 목록수집</a>
+    <a class="drag alt" href="${attr(batchBookmarkletSource(codesByHost, namesByHost, slugsByHost))}">RICKY 목록수집</a>
     &nbsp;&nbsp;
     <a class="drag" href="${attr(bookmarkletSource())}">RICKY 재고수집</a>
   </p>
@@ -583,9 +816,7 @@ export function bookmarkletPage(
       <td>카테고리 · 검색결과 · 위시리스트</td>
       <td>상품 상세 페이지</td></tr>
   <tr><td><b>한 번에</b></td>
-      <td>${Object.values(codesByHost).some((c) => c.length)
-        ? '그 목록에서 <b>카탈로그에 등록된 상품만</b>'
-        : '그 목록의 상품 전부 (최대 60건)'}</td>
+      <td>그 목록에서 <b>카탈로그에 등록된 상품만</b> (최대 60건)</td>
       <td>상품 1건</td></tr>
   <tr><td><b>걸리는 시간</b></td>
       <td>상품당 약 7초 (20건이면 2~3분)</td>
@@ -601,7 +832,7 @@ export function bookmarkletPage(
       <b>끝까지 스크롤</b>해서 상품을 다 띄운다 → 북마크 클릭 → 확인 →
       <b>창을 닫지 말고</b> 기다린다 → 파일 하나가 저장된다.
       카탈로그에 등록된 상품만 골라 담으므로 브랜드당 한 번이면 된다.
-      (상품코드가 없는 브랜드는 목록 전체를 담고 나중에 이름으로 대조한다)</li>
+      (상품코드가 없는 브랜드는 상품명으로 거른다)</li>
   <li><b>재고수집</b> — 상품 상세 페이지에서 북마크 클릭 → 파일 저장.
       색상마다 사이즈가 다르면 색상을 바꿔 가며 여러 번 눌러도 된다(합쳐진다)</li>
   <li>마지막에 터미널에서 한 번만: <code>npm run stock:all</code></li>

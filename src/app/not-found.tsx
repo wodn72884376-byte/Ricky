@@ -1,7 +1,7 @@
 import { ButtonLink } from '@/components/ui/button';
 import { Container } from '@/components/layout/container';
 
-export const metadata = { title: '없는 주소예요 — RICKY' };
+export const metadata = { title: '없는 주소입니다' };
 
 /**
  * 404.
@@ -17,9 +17,9 @@ export default function NotFound() {
     <Container as="main" className="flex min-h-[70vh] flex-col items-start justify-center gap-6 py-24">
       <div className="flex flex-col gap-3">
         <p className="text-meta font-bold tracking-wide text-muted-text">NOT FOUND</p>
-        <h1 className="text-editorial font-bold text-ink">없는 주소예요</h1>
+        <h1 className="text-editorial font-bold text-ink">없는 주소입니다</h1>
         <p className="max-w-[var(--measure-prose)] text-body text-muted-text">
-          주소가 바뀌었거나, 판매가 끝난 상품일 수 있어요.
+          주소가 바뀌었거나, 판매가 끝난 상품일 수 있습니다.
         </p>
       </div>
 

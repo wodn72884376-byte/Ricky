@@ -1,89 +1,113 @@
 'use client';
 
 import { useState } from 'react';
+import type { Provider } from '@supabase/supabase-js';
 import { createClientIfConfigured } from '@/lib/supabase/client';
-import { Field } from '@/components/ui/field';
-import { Button } from '@/components/ui/button';
+import { GoogleMark, KakaoMark, NaverMark } from '@/components/ui/brand-marks';
+import { cn } from '@/lib/utils/cn';
 
 /**
- * 매직링크 폼.
+ * 소셜 로그인. 구글 · 네이버 · 카카오 셋뿐이다.
  *
- * 비밀번호 입력이 없다. `비밀번호 찾기`·`로그인 유지`도 없다 — 비밀번호가 존재하지 않으므로
- * 잃어버릴 것도, 유지할 것도 없다. 폼이 한 줄인 게 결함이 아니라 이 인증 방식의 결과다.
+ * 이메일 입력이 없다. 비밀번호도, 매직링크도 없다 — 우리가 비밀번호를 저장하지 않고
+ * 이메일 인증도 대행하지 않는다는 뜻이다. 폼이 버튼 셋인 게 결함이 아니라 이 방식의 결과다.
+ *
+ * **버튼 색을 우리 팔레트로 바꾸지 않는다.** DESIGN.md §2가 브랜드 컬러를 금지하지만
+ * 이건 우리 색이 아니라 각 사가 정한 자산이다 — 네이버페이 버튼과 같은 예외이며
+ * (`scripts/check-contrast.mjs` 의 외부 브랜드 자산 절), 임의로 칠하면 각 사의
+ * 로그인 버튼 가이드 위반이다.
+ *
+ * 대신 규칙이 하나 붙는다: **이 버튼들 위에 설명 문구를 얹지 않는다.**
+ * 네이버 초록 위 흰 글자는 2.25:1 이라 라벨 한 단어까지가 한계다.
  */
-export function LoginForm({ signup }: { signup: boolean }) {
-  const [email, setEmail] = useState('');
-  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
-  const [message, setMessage] = useState('');
 
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    setStatus('sending');
+/** 네이버는 Supabase 기본 제공자가 아니라 커스텀 OIDC다. 대시보드의 식별자와 같아야 한다. */
+const NAVER: Provider = 'custom:naver';
+
+const PROVIDERS: {
+  id: Provider;
+  label: string;
+  mark: React.ComponentType<{ size?: number }>;
+  className: string;
+}[] = [
+  {
+    id: 'google',
+    label: '구글로 계속하기',
+    mark: GoogleMark,
+    // 구글 가이드의 라이트 테마: 흰 배경 · #747775 보더 · #1f1f1f 라벨
+    className: 'bg-white text-[#1f1f1f] border border-[#747775] hover:bg-[#f8f8f8]',
+  },
+  {
+    id: NAVER,
+    label: '네이버로 계속하기',
+    mark: NaverMark,
+    className: 'bg-[#03c75a] text-white hover:bg-[#02b351]',
+  },
+  {
+    id: 'kakao',
+    label: '카카오로 계속하기',
+    mark: KakaoMark,
+    // 카카오 가이드: #fee500 바탕에 검정 라벨(85% 불투명도)
+    className: 'bg-[#fee500] text-[rgba(0,0,0,0.85)] hover:bg-[#f2da00]',
+  },
+];
+
+export function LoginForm({ next }: { next: string }) {
+  const [busy, setBusy] = useState<Provider | null>(null);
+  const [error, setError] = useState('');
+
+  async function signIn(provider: Provider) {
+    setBusy(provider);
+    setError('');
 
     const supabase = createClientIfConfigured();
     if (!supabase) {
-      setStatus('error');
-      setMessage('로그인이 아직 준비되지 않았어요. 잠시 후 다시 시도해 주세요.');
+      setBusy(null);
+      setError('로그인이 아직 준비되지 않았습니다. 잠시 후 다시 시도해 주십시오.');
       return;
     }
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    const callback = new URL('/auth/callback', window.location.origin);
+    callback.searchParams.set('next', next);
+
+    const { error: err } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: callback.toString() },
     });
 
-    if (error) {
-      setStatus('error');
-      setMessage('링크를 보내지 못했어요. 잠시 후 다시 시도해 주세요.');
-      return;
+    // 성공하면 이 줄에 오지 않는다 — 브라우저가 제공자 화면으로 떠난다.
+    if (err) {
+      setBusy(null);
+      setError('로그인 화면을 열지 못했습니다. 잠시 후 다시 시도해 주십시오.');
     }
-
-    setStatus('sent');
-    setMessage(`${email}로 링크를 보냈어요. 메일함을 확인해 주세요.`);
-  }
-
-  // 보낸 뒤에는 폼을 다시 보여주지 않는다. 할 일은 메일함에 있다.
-  if (status === 'sent') {
-    return (
-      <div className="mt-10 flex flex-col gap-4">
-        <p role="status" className="text-body text-ink">
-          {message}
-        </p>
-        <p className="text-meta text-muted-text">
-          메일이 안 보이면 스팸함도 확인해 주세요. 링크는 한 시간 동안 유효해요.
-        </p>
-        <button
-          type="button"
-          onClick={() => setStatus('idle')}
-          className="mt-2 self-start text-cta font-bold text-ink underline underline-offset-4"
-        >
-          다른 이메일로 다시 받기
-        </button>
-      </div>
-    );
   }
 
   return (
     <>
-      <form onSubmit={handleSubmit} className="mt-10 flex flex-col gap-6">
-        <Field
-          label="이메일"
-          type="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@example.com"
-          autoComplete="email"
-          autoFocus
-        />
-        <Button type="submit" variant="inverted" disabled={status === 'sending'}>
-          {status === 'sending' ? '보내는 중' : signup ? '가입 링크 받기' : '로그인 링크 받기'}
-        </Button>
-      </form>
+      <div className="mt-10 flex flex-col gap-3">
+        {PROVIDERS.map(({ id, label, mark: Mark, className }) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => signIn(id)}
+            disabled={busy !== null}
+            className={cn(
+              'inline-flex h-13 w-full items-center justify-center gap-2.5 rounded-ghost',
+              'text-cta font-bold select-none',
+              'transition-colors duration-[var(--motion-quick)] ease-out',
+              'disabled:opacity-40 disabled:pointer-events-none',
+              className,
+            )}
+          >
+            <Mark />
+            {busy === id ? '이동 중' : label}
+          </button>
+        ))}
+      </div>
 
-      {status === 'error' && (
+      {error && (
         <p role="alert" className="mt-5 text-body text-error">
-          {message}
+          {error}
         </p>
       )}
     </>

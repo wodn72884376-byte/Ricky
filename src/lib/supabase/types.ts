@@ -9,7 +9,7 @@
  */
 
 export type ProductStatus = 'draft' | 'active' | 'paused' | 'archived';
-export type ProductGender = 'men' | 'women' | 'unisex';
+export type ProductGender = 'men' | 'women' | 'unisex' | 'kids';
 /** 내비게이션이 이 값으로 라우팅된다. DB에 check 제약이 걸려 있다. */
 export type ProductCategory =
   | 'outerwear' | 'top' | 'bottom' | 'bag' | 'wallet' | 'shoes' | 'accessory';
@@ -94,6 +94,8 @@ export type ProductVariantRow = {
   height_mm: number | null;
   stock_type: StockType;
   active: boolean;
+  /** 이 색상만의 스마트스토어 상품 URL. null이면 products.smartstore_url로 떨어진다 */
+  smartstore_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -270,8 +272,10 @@ export type StoreVariantRow = {
   kr_retail_krw: number | null;
   /** 상품별 배송비(원). null이면 무게 기반 계산값 */
   shipping_krw: number | null;
-  /** 결제로 가는 유일한 경로 */
+  /** 결제로 가는 유일한 경로. 옵션 전용 주소가 있으면 그것이 이긴다 */
   smartstore_url: string | null;
+  /** 위 주소가 이 색상 전용인가. false면 상품 주소로 떨어진 것이라 색상을 다시 골라야 한다 */
+  smartstore_url_is_variant: boolean | null;
   stock_type: StockType;
   purchasable: boolean | null;
   supplier_checked_at: string | null;

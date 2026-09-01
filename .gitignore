@@ -46,3 +46,9 @@ next-env.d.ts
 
 # self-hosted fonts (postinstall이 node_modules에서 복사)
 /public/fonts
+
+# SQL Editor 에 한 번 붙여넣기 위한 생성물 (migrations/ 가 원본)
+supabase/전체적용.sql
+
+# 카탈로그에서 다시 만드는 목록 (npm run urls)
+공식몰-url.csv

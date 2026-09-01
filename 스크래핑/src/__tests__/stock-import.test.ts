@@ -2,16 +2,21 @@ import { describe, expect, it } from 'vitest';
 import { brandFromUrl, captureToStock } from '../stock/import.ts';
 import {
   arcteryxNameCandidates,
+  cachedUrls,
   codeFromSku,
   genderOf,
   matchToCatalog,
   type CatalogTarget,
 } from '../stock/catalog.ts';
-import type { ProductStock } from '../stock/types.ts';
+import type { ProductStock, StockRow } from '../stock/types.ts';
+import { linkStock } from '../stock/link.ts';
+import { BRANDS } from '../config/brands.ts';
 import {
   batchBookmarkletSource,
   bookmarkletSource,
+  catalogFingerprint,
   CAPTURE_VERSION,
+  nameSlug,
 } from '../stock/bookmarklet.ts';
 import type { StockCapture } from '../stock/bookmarklet.ts';
 
@@ -368,7 +373,9 @@ describe('matchToCatalog — 코드 체계가 있는 브랜드', () => {
     name: 'Cable-Knit Cotton Polo Sweater',
     gender: 'men',
     codes: ['650001'],
+    urls: [],
     url: null,
+    officialUrls: [],
     ...over,
   });
 
@@ -406,7 +413,9 @@ describe('matchToCatalog — 코드 체계가 있는 브랜드', () => {
       name: 'Extra Large Claw Hair Clip',
       gender: 'women',
       codes: [],
+      urls: [],
       url: null,
+      officialUrls: [],
     };
     const s: ProductStock = {
       brand: 'lululemon',
@@ -440,6 +449,13 @@ describe('codeFromSku', () => {
 });
 
 describe('목록수집 — 카탈로그 필터', () => {
+  const SLUGS = {
+    'shop.lululemon.com': [
+      'mens-fast-and-free-trail-running-vest',
+      'womens-fast-and-free-trail-running-vest',
+      'jumbo-claw-clip',
+    ],
+  };
   const BY_HOST = {
     'coach.com': ['CDZ42', 'CU068'],
     'arcteryx.com': ['X000010932'],
@@ -468,10 +484,14 @@ describe('목록수집 — 카탈로그 필터', () => {
     expect(src).toContain('location.hostname.indexOf');
   });
 
-  it('코드가 없는 브랜드는 거르지 않는다 — 빈 목록은 전체 수집을 뜻한다', () => {
-    // 룰루레몬처럼 상품코드가 없는 브랜드에 필터를 걸면 전부 걸러져 0건이 된다
-    const src = batchBookmarkletSource(BY_HOST);
-    expect(src).toContain('if(WANT.length)');
+  it('코드가 없는 브랜드는 상품명 슬러그로 거른다', () => {
+    /*
+     * 실측: 룰루레몬은 상품코드가 없어 필터가 통째로 꺼졌고, 목록 전체 81건을
+     * 8분에 걸쳐 받아 놓고 정작 카탈로그 상품은 4건이었다.
+     */
+    const src = batchBookmarkletSource(BY_HOST, {}, SLUGS);
+    expect(src).toContain('WANT_SLUGS');
+    expect(src).toContain('mens-fast-and-free-trail-running-vest');
   });
 
   it('맵이 비면 전부 수집하는 동작으로 남는다', () => {
@@ -493,7 +513,9 @@ describe('matchToCatalog — 이름만으로 붙일 때', () => {
     name: 'Fast and Free Trail Running Vest',
     gender,
     codes: [],
+    urls: [],
     url: null,
+    officialUrls: [],
   });
 
   const stock = (name: string, url = 'https://shop.lululemon.com/en-ca/p/x/prod1'): ProductStock => ({
@@ -663,5 +685,302 @@ describe('arcteryxNameCandidates — 시즌마다 바뀌는 상품코드', () =>
         'https://arcteryx.com/ca/en/shop/mens/atom-hoody-9556',
       ]),
     ).toHaveLength(1);
+  });
+});
+
+describe('nameSlug · slugInUrl — 코드 없는 브랜드의 이름 대조', () => {
+  it('아포스트로피를 URL 표기에 맞춰 지운다', () => {
+    expect(nameSlug("Men's Fast and Free Trail Running Vest")).toBe(
+      'mens-fast-and-free-trail-running-vest',
+    );
+    expect(nameSlug('Extra Large Claw Hair Clip')).toBe('extra-large-claw-hair-clip');
+  });
+
+  /** 북마클릿 안에 심긴 slugInUrl 을 그대로 꺼내 돌린다 */
+  const slugInUrl = new Function(
+    'u',
+    'slug',
+    "var N='-'+String(u).toLowerCase().replace(/[^a-z0-9]+/g,'-')+'-';" +
+      "return N.indexOf('-'+slug+'-')>=0;",
+  ) as (u: string, slug: string) => boolean;
+
+  const WOMENS =
+    'https://shop.lululemon.com/en-ca/p/equipment/Womens-Fast-and-Free-Trail-Running-Vest/_/prod11890062';
+  const MENS =
+    'https://shop.lululemon.com/en-ca/p/equipment/Mens-Fast-and-Free-Trail-Running-Vest/_/prod11890040';
+
+  it('실제 룰루레몬 URL 에서 이름을 찾는다', () => {
+    expect(slugInUrl(MENS, nameSlug("Men's Fast and Free Trail Running Vest"))).toBe(true);
+    expect(slugInUrl(WOMENS, nameSlug("Women's Fast and Free Trail Running Vest"))).toBe(true);
+  });
+
+  it('남성 이름이 여성 URL 에 붙지 않는다', () => {
+    /*
+     * 'womens-fast-…' 안에 'mens-fast-…' 가 그대로 들어 있다.
+     * 경계를 안 보면 남녀 상품이 서로 뒤바뀐다 — 룰루레몬은 둘의 이름이 같다.
+     */
+    expect(slugInUrl(WOMENS, nameSlug("Men's Fast and Free Trail Running Vest"))).toBe(false);
+    expect(slugInUrl(MENS, nameSlug("Women's Fast and Free Trail Running Vest"))).toBe(false);
+  });
+
+  it('관계없는 상품은 걸리지 않는다', () => {
+    expect(slugInUrl(MENS, nameSlug('Jumbo Claw Clip'))).toBe(false);
+  });
+
+  it('같은 슬러그가 둘이어도 첫 건에서 멈추지 않는다', () => {
+    /*
+     * 실측: 카탈로그는 룰루레몬 남녀 조끼를 둘 다 이름 'Fast and Free Trail Running Vest'
+     * 로 들고 있다(성별은 별도 필드). 슬러그가 같으므로 첫 건에서 break 하면
+     * 나머지 하나가 수집됐는데도 늘 "못 찾음" 으로 보고된다.
+     */
+    const src = batchBookmarkletSource(
+      { 'shop.lululemon.com': [] },
+      {},
+      { 'shop.lululemon.com': ['fast-and-free-trail-running-vest'] },
+    );
+    const loop = src
+      .slice(src.indexOf('WANT_SLUGS[g]'), src.indexOf('urls=kept'))
+      .replace(/\/\*[\s\S]*?\*\//g, ''); // 주석에 든 'break' 는 코드가 아니다
+    expect(loop).not.toContain('break');
+    expect(loop).toContain('hitCodes[WANT_NAMES[g]]=1');
+  });
+});
+
+describe('cachedUrls — 사람이 고른 URL 은 --fresh 로도 지우지 않는다', () => {
+  /*
+   * 실측: 아크테릭스 Beta Jacket 은 카탈로그 코드(X000010878)가 CA 사이트에 없어
+   * 코드로도 이름으로도(후보 2건) 자동 해석이 안 된다. 사람이 확인해
+   * supplier-urls.json 에 적어 넣은 beta-jacket-0868 이 유일한 답이다.
+   * --fresh 가 이걸 지우면 새로고침 한 번에 그 확인이 날아간다.
+   */
+  const MANUAL = { url: 'https://arcteryx.com/ca/en/shop/mens/beta-jacket-0868', via: 'manual' };
+  const AUTO = { url: 'https://arcteryx.com/ca/en/shop/mens/alpha-jacket-0932', via: 'sitemap' };
+
+  it('평소에는 캐시된 URL 을 그대로 쓴다', () => {
+    expect(cachedUrls(MANUAL, false)).toEqual([MANUAL.url]);
+    expect(cachedUrls(AUTO, false)).toEqual([AUTO.url]);
+  });
+
+  it('--fresh 는 자동 해석분만 버린다', () => {
+    expect(cachedUrls(AUTO, true)).toEqual([]);
+    expect(cachedUrls(MANUAL, true)).toEqual([MANUAL.url]);
+  });
+
+  it('북마클릿이 학습한 URL 도 --fresh 로 다시 푼다', () => {
+    expect(cachedUrls({ url: 'https://x/y', via: 'bookmarklet' }, true)).toEqual([]);
+  });
+
+  it('캐시에 없으면 null', () => {
+    expect(cachedUrls(undefined, false)).toEqual([]);
+  });
+});
+
+describe('캐나다구스 — 한 상품이 페이지 여러 개', () => {
+  /*
+   * 실측: 로고 디스크 마감마다 스타일 코드가 따로다.
+   *   MacMillan Parka  Classic Disc → 2080M   ·  Black Disc → 2080MB
+   * 카탈로그는 이걸 한 상품의 색상으로 접어 두므로(SKU `2080M-CLASSIC-DISC-BLACK`),
+   * 코드 하나만 URL 로 풀면 나머지 디스크의 재고가 통째로 빠진다.
+   */
+  const TARGET: CatalogTarget = {
+    slug: 'canadagoose-macmillan-parka-men',
+    brand: 'canadagoose',
+    name: 'MacMillan Parka',
+    gender: 'men',
+    codes: ['2080MB', '2080M'],
+    urls: [
+      'https://www.canadagoose.com/ca/en/macmillan-parka-2080MB.html',
+      'https://www.canadagoose.com/ca/en/macmillan-parka-2080M.html',
+    ],
+    url: 'https://www.canadagoose.com/ca/en/macmillan-parka-2080MB.html',
+    officialUrls: [],
+  };
+
+  const cgStock = (url: string, code: string, colour: string): ProductStock => ({
+    brand: 'canadagoose',
+    productUrl: url,
+    productName: 'MacMillan Parka',
+    productCode: code,
+    rows: [],
+    error: null,
+    checkedAt: '2026-08-29T00:00:00.000Z',
+  });
+
+  it('디스크가 다른 두 페이지가 모두 같은 카탈로그 상품에 붙는다', () => {
+    for (const [url, code] of [
+      [TARGET.urls[0]!, '2080MB'],
+      [TARGET.urls[1]!, '2080M'],
+    ] as const) {
+      expect(matchToCatalog(cgStock(url, code, 'Black'), [TARGET])?.slug).toBe(TARGET.slug);
+    }
+  });
+
+  it('색상은 디스크를 떼고 맞춘다 — 사이트는 "Atlantic Navy"라고만 말한다', () => {
+    /*
+     * 카탈로그 SKU 는 `2080M-CLASSIC-DISC-ATLANTIC-NAVY` 인데 수집한 색상은
+     * `Atlantic Navy` 다. 통째로 비교하면 캐나다구스 재고가 하나도 안 붙는다.
+     */
+    const row = (colour: string, code: string): StockRow => ({
+      brand: 'canadagoose',
+      productCode: code,
+      productName: 'MacMillan Parka',
+      productUrl: `https://www.canadagoose.com/ca/en/macmillan-parka-${code}.html`,
+      sku: null,
+      gtin: null,
+      styleCode: code,
+      colour,
+      colourCode: null,
+      size: { declared: 'M', code: 'M', width: null, label: 'M' },
+      availability: 'in_stock',
+      priceCents: 145000,
+      listPriceCents: null,
+      onSale: false,
+      checkedAt: '2026-08-29T00:00:00.000Z',
+      source: 'manual',
+    });
+
+    const catalog = [
+      {
+        slug: 'canadagoose-macmillan-parka-men',
+        name: 'MacMillan Parka',
+        brandSlug: 'canadagoose',
+        variants: [
+          { sku: '2080M-CLASSIC-DISC-ATLANTIC-NAVY', color: 'Classic Disc / Atlantic Navy' },
+          { sku: '2080MB-BLACK-DISC-BLACK', color: 'Black Disc / Black' },
+        ],
+      },
+    ];
+
+    const { linked } = linkStock([row('Atlantic Navy', '2080M'), row('Black', '2080MB')], catalog);
+
+    expect(linked.map((l) => l.sku).sort()).toEqual([
+      '2080M-CLASSIC-DISC-ATLANTIC-NAVY',
+      '2080MB-BLACK-DISC-BLACK',
+    ]);
+    // variant 마다 자기 디스크의 페이지를 들고 있어야 한다
+    expect(linked.find((l) => l.sku.startsWith('2080MB'))?.productUrl).toContain('2080MB');
+    expect(linked.find((l) => l.sku.startsWith('2080M-'))?.productUrl).toContain('2080M.html');
+  });
+});
+
+describe('캐나다구스 URL 코드 대조 — 2080M 은 2080MB 의 접두사다', () => {
+  /** 북마클릿에 심긴 codeInUrl 을 그대로 꺼내 돌린다 */
+  const src = batchBookmarkletSource();
+  const body = src.slice(src.indexOf('function codeInUrl'));
+  const codeInUrl = new Function(
+    'return ' + body.slice(0, body.indexOf('function slugInUrl')),
+  )() as (u: string, code: string) => boolean;
+
+  const BLACK = 'https://www.canadagoose.com/ca/en/macmillan-parka-2080MB.html';
+  const CLASSIC = 'https://www.canadagoose.com/ca/en/macmillan-parka-2080M.html';
+
+  it('자기 코드에만 걸린다', () => {
+    expect(codeInUrl(BLACK, '2080MB')).toBe(true);
+    expect(codeInUrl(CLASSIC, '2080M')).toBe(true);
+  });
+
+  it('Classic 코드가 Black 페이지에 걸리지 않는다', () => {
+    /*
+     * 경계를 안 두면 '2080M' 이 '…-2080MB.html' 안에서 걸려,
+     * Classic 디스크의 재고로 Black 디스크 페이지를 읽게 된다 — 없는 재고를 만든다.
+     */
+    expect(codeInUrl(BLACK, '2080M')).toBe(false);
+  });
+
+  it('쿼리스트링이 붙어도 판정이 흔들리지 않는다', () => {
+    expect(codeInUrl(`${CLASSIC}?dwvar=9063`, '2080M')).toBe(true);
+  });
+});
+
+describe('catalogFingerprint — 북마클릿이 낡았는지 알아채기', () => {
+  /*
+   * 북마클릿은 등록 상품 목록을 **안에 박아** 배포한다. 상품을 추가해도 브라우저의
+   * 북마크는 옛 목록 그대로라, 새 상품이 수집에서 조용히 빠진다.
+   * 실제로 캐나다구스 8건이 그럴 뻔했다 — 사람이 기억할 일이 아니다.
+   */
+  const A = { 'ca.coach.com': ['CDZ42', 'CU068'] };
+  const B = { 'ca.coach.com': ['CDZ42', 'CU068'], 'canadagoose.com': ['2080M'] };
+
+  it('같은 카탈로그면 같은 지문이다', () => {
+    expect(catalogFingerprint(A)).toBe(catalogFingerprint({ 'ca.coach.com': ['CDZ42', 'CU068'] }));
+  });
+
+  it('코드 순서가 달라도 같은 지문이다 — 순서는 뜻이 없다', () => {
+    expect(catalogFingerprint(A)).toBe(catalogFingerprint({ 'ca.coach.com': ['CU068', 'CDZ42'] }));
+  });
+
+  it('브랜드가 늘면 지문이 달라진다', () => {
+    expect(catalogFingerprint(B)).not.toBe(catalogFingerprint(A));
+  });
+
+  it('코드가 하나만 빠져도 달라진다', () => {
+    expect(catalogFingerprint({ 'ca.coach.com': ['CDZ42'] })).not.toBe(catalogFingerprint(A));
+  });
+
+  it('이름으로 거르는 브랜드의 슬러그 변화도 잡는다', () => {
+    const withSlug = catalogFingerprint(A, { 'shop.lululemon.com': ['jumbo-claw-clip'] });
+    expect(withSlug).not.toBe(catalogFingerprint(A));
+  });
+
+  it('목록수집 북마클릿이 지문을 싣는다', () => {
+    const src = batchBookmarkletSource(A);
+    expect(src).toContain(`var CATALOG_FP="${catalogFingerprint(A)}"`);
+    expect(src).toContain('catalogFp:CATALOG_FP');
+  });
+});
+
+describe('자동 수집 가능 여부 표시', () => {
+  /*
+   * 북마클릿으로 한 번 수집하면 learnUrls 가 URL 을 학습한다. 표시가 없으면
+   * 그 뒤로 매 회차 차단된 사이트를 헛되이 두드리고, 리포트가 '수집 실패'로 채워져
+   * 진짜 실패가 묻힌다. 실측(2026-08-29) 기준을 코드에 박아 둔다.
+   */
+  it('앞문까지 막힌 브랜드는 북마클릿 전용으로 표시돼 있다', () => {
+    for (const key of ['canadagoose', 'polo', 'lululemon', 'tumi'] as const) {
+      expect(BRANDS[key].ca.automation).toBe('bookmarklet');
+    }
+  });
+
+  it('사이트맵이 열리는 브랜드는 자동이다', () => {
+    // 아크테릭스는 Kasada 를 PDP 에만 걸어 사이트맵·robots 를 정적으로 내준다
+    for (const key of ['arcteryx', 'coach'] as const) {
+      expect(BRANDS[key].ca.automation ?? 'auto').toBe('auto');
+    }
+  });
+});
+
+describe('카탈로그의 공식몰 URL', () => {
+  /*
+   * 캐나다구스는 사이트맵이 429 라 해석으로는 URL 을 영영 못 얻는다.
+   * 사람이 카탈로그에 적어 둔 값이 유일한 답이고, 그래서 해석보다 우선한다.
+   */
+  it('색상마다 URL 이 있어도 같은 페이지면 한 번만 연다', async () => {
+    const { catalogTargets } = await import('../stock/catalog.ts');
+    const cg = catalogTargets(['canadagoose']);
+    expect(cg.length).toBeGreaterThan(0);
+
+    for (const t of cg) {
+      const paths = t.officialUrls.map((u) => new URL(u).origin + new URL(u).pathname);
+      expect(new Set(paths).size).toBe(paths.length);
+    }
+  });
+
+  it('경로가 다르면 전부 남긴다 — 디스크 마감마다 별도 PDP 다', async () => {
+    const { catalogTargets } = await import('../stock/catalog.ts');
+    const langford = catalogTargets(['canadagoose']).find((t) => t.slug.includes('langford'));
+    expect(langford).toBeDefined();
+    // 2052M · 2052MT · 2052MB — 하나로 접으면 나머지 디스크 재고가 통째로 빠진다
+    expect(langford!.officialUrls.length).toBeGreaterThan(1);
+  });
+
+  /*
+   * "모든 상품에 URL 이 있다" 를 단언하지 않는다. 상품을 새로 등록하면 URL 이 아직
+   * 없는 게 정상이고, 그때마다 테스트가 깨지면 데이터 추가를 막는 셈이다 —
+   * 실측: 캐나다구스 KIDS 7건이 들어오자 바로 그렇게 됐다.
+   * 중요한 건 **빠진 것이 드러나는가** 다. 그건 재고관리.html 과 extension 이 센다.
+   */
+  it('URL 이 없는 상품은 빈 배열로 드러난다 — 조용히 사라지지 않는다', async () => {
+    const { catalogTargets } = await import('../stock/catalog.ts');
+    for (const t of catalogTargets()) expect(Array.isArray(t.officialUrls)).toBe(true);
   });
 });

@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/server';
 import type { ProductStatus } from '@/lib/supabase/types';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: '상품 — RICKY 운영' };
+export const metadata = { title: '상품' };
 
 /**
  * 상품 목록 (docs/wireframes/08-admin.md).
@@ -28,15 +28,39 @@ export default async function AdminProductsPage({ searchParams }: PageProps<'/ad
   const status = typeof sp.status === 'string' ? sp.status : '';
   const brand = typeof sp.brand === 'string' ? sp.brand : '';
 
+  /*
+    내보내기는 **지금 보고 있는 조건 그대로** 받는다. 걸러 놓고 받았는데 전체가 나오면
+    파일을 다시 걸러야 한다. 파라미터를 그대로 물려준다.
+  */
+  const exportQuery = new URLSearchParams(
+    Object.entries({ q, status, brand }).filter(([, v]) => v),
+  ).toString();
+  const exportHref = `/admin/products/export${exportQuery ? `?${exportQuery}` : ''}`;
+
   const header = (
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div>
         <h1 className="text-headline font-bold text-ink">상품</h1>
         <p className="mt-1 text-body text-muted-text">등록한 상품을 여기서 고치고 상태를 바꿔요.</p>
       </div>
-      <ButtonLink href="/admin/products/new" variant="inverted" size="md">
-        상품 등록
-      </ButtonLink>
+      <div className="flex flex-wrap items-center gap-3">
+        {/* 반전 블랙은 화면당 하나다 (DESIGN.md §4) — 그 자리는 `상품 등록`이 갖는다 */}
+        <ButtonLink href={exportHref} variant="ghost" size="md" prefetch={false}>
+          상품 엑셀
+        </ButtonLink>
+        {/* 캐나다구스는 색상마다 공식몰 주소가 다르다 — 자동화가 순회할 대상은 옵션이다 */}
+        <ButtonLink
+          href={`${exportHref}${exportQuery ? '&' : '?'}grain=variant`}
+          variant="ghost"
+          size="md"
+          prefetch={false}
+        >
+          옵션 엑셀
+        </ButtonLink>
+        <ButtonLink href="/admin/products/new" variant="inverted" size="md">
+          상품 등록
+        </ButtonLink>
+      </div>
     </div>
   );
 
@@ -63,7 +87,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps<'/ad
   let query = supabase
     .from('products')
     // 셀렉트 문자열은 한 줄이어야 한다. 이어 붙이면 타입 추론이 리터럴을 잃고 결과가 통째로 에러 타입이 된다.
-    .select('id, name, slug, category, gender, status, featured_rank, shipping_krw, smartstore_url, origin_country, material, care, manufacturer, as_contact, brands(name), product_variants(price_krw, active)')
+    .select('id, name, slug, category, gender, status, featured_rank, shipping_krw, smartstore_url, official_url, origin_country, material, care, manufacturer, as_contact, brands(name, official_site_url), product_variants(price_krw, active, smartstore_url)')
     .order('updated_at', { ascending: false })
     .limit(200);
 

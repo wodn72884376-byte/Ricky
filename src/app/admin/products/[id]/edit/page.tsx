@@ -40,10 +40,10 @@ function joinDistinct(values: (string | null)[]): string {
 
 export async function generateMetadata({ params }: PageProps<'/admin/products/[id]/edit'>) {
   const { id } = await params;
-  if (!hasSupabaseEnv() || !UUID.test(id)) return { title: '상품 수정 — RICKY 운영' };
+  if (!hasSupabaseEnv() || !UUID.test(id)) return { title: '상품 수정' };
   const supabase = await createClient();
   const { data } = await supabase.from('products').select('name').eq('id', id).single();
-  return { title: data?.name ? `${data.name} 수정 — RICKY 운영` : '상품 수정 — RICKY 운영' };
+  return { title: data?.name ? `${data.name} 수정` : '상품 수정' };
 }
 
 export default async function EditProductPage({ params }: PageProps<'/admin/products/[id]/edit'>) {

@@ -7,7 +7,7 @@ import type { SortKey } from '@/components/store/product-filter-bar';
 import { ButtonLink } from '@/components/ui/button';
 import { EmptyResult, EmptyState } from '@/components/ui/states';
 import { allProducts, categoryTabs, filterGender, toCardProps } from '@/lib/catalog';
-import { BRAND_COLUMNS, type Gender } from '@/lib/nav';
+import { BRAND_COLUMNS, GENDER_LABEL, parseGender } from '@/lib/nav';
 import { cn } from '@/lib/utils/cn';
 
 /**
@@ -17,12 +17,11 @@ import { cn } from '@/lib/utils/cn';
  * 성별에 맞는 상품이 없는 브랜드·카테고리는 아예 그리지 않는다.
  */
 
-const GENDER_LABEL: Record<Gender, string> = { men: "Men's", women: "Women's" };
 
 export async function generateMetadata({ searchParams }: PageProps<'/shop'>) {
   const sp = await searchParams;
-  const gender = sp.gender === 'men' || sp.gender === 'women' ? sp.gender : null;
-  return { title: gender ? `${GENDER_LABEL[gender]} — RICKY` : '전체 상품 — RICKY' };
+  const gender = parseGender(sp.gender);
+  return { title: gender ? GENDER_LABEL[gender] : '전체 상품' };
 }
 
 function sortProducts<T extends { priceKrw: number; compareAtKrw?: number; arrivedAt: string }>(
@@ -46,7 +45,7 @@ function sortProducts<T extends { priceKrw: number; compareAtKrw?: number; arriv
 
 export default async function ShopPage({ searchParams }: PageProps<'/shop'>) {
   const sp = await searchParams;
-  const gender: Gender | null = sp.gender === 'men' || sp.gender === 'women' ? sp.gender : null;
+  const gender = parseGender(sp.gender);
   const category = typeof sp.category === 'string' ? sp.category : null;
   const sort = (typeof sp.sort === 'string' ? sp.sort : 'recommended') as SortKey;
 
@@ -72,7 +71,7 @@ export default async function ShopPage({ searchParams }: PageProps<'/shop'>) {
         <div>
           <h1 className="text-headline font-bold">{gender ? GENDER_LABEL[gender] : '전체 상품'}</h1>
           <p className="mt-2 text-body text-muted-text">
-            캘거리에서 직접 골라 매입한 상품이에요.
+            캘거리에서 직접 골라 매입한 상품입니다.
           </p>
         </div>
         {scoped.length > 0 && (
@@ -102,7 +101,7 @@ export default async function ShopPage({ searchParams }: PageProps<'/shop'>) {
       {scoped.length === 0 ? (
         <EmptyState
           className="border-t border-outline"
-          message="이 조건에 맞는 상품이 아직 없어요."
+          message="이 조건에 맞는 상품이 아직 없습니다."
           action={
             <ButtonLink href="/shop" chevron>
               전체 상품 보기
@@ -117,7 +116,7 @@ export default async function ShopPage({ searchParams }: PageProps<'/shop'>) {
 
           {visible.length === 0 ? (
             <div className="flex flex-col items-start gap-6">
-              <EmptyResult message="이 조건에 맞는 상품이 없어요." />
+              <EmptyResult message="이 조건에 맞는 상품이 없습니다." />
               <ButtonLink href={`/shop${query({})}`} chevron>
                 전체 보기
               </ButtonLink>

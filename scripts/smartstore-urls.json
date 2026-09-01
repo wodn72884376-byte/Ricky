@@ -1,0 +1,469 @@
+{
+  "_주석": [
+    "스마트스토어 구매 경로. 결제는 전부 여기서 일어나므로 이 값이 없으면 살 방법이 없다.",
+    "url     : 상품 하나에 스토어 상품 하나. 고객이 스마트스토어에서 색상·사이즈를 고른다.",
+    "byColor : 색상마다 스토어 상품을 따로 등록했을 때. 키는 카탈로그의 variant.color 와 정확히 같아야 한다.",
+    "          이걸 쓰면 고객이 색을 다시 고르지 않는다 — 사이즈만 고르면 된다.",
+    "빈 문자열은 아직 안 채웠다는 뜻이다. 값으로 취급하지 않는다.",
+    "둘 다 있으면 byColor 가 이긴다. url 은 색상별 값이 없는 색의 폴백이다."
+  ],
+  "arcteryx-alpha-jacket-men": {
+    "url": "",
+    "_색상": [
+      "Graphite Black"
+    ]
+  },
+  "arcteryx-alpha-sv-jacket-men": {
+    "url": "",
+    "_색상": [
+      "24K Black"
+    ]
+  },
+  "arcteryx-altira-cropped-jacket-women": {
+    "url": "",
+    "_색상": [
+      "Black"
+    ]
+  },
+  "arcteryx-atom-hoody-men": {
+    "url": "",
+    "_색상": [
+      "Black"
+    ]
+  },
+  "arcteryx-atom-jacket-men": {
+    "url": "",
+    "_색상": [
+      "Black"
+    ]
+  },
+  "arcteryx-atom-jacket-women": {
+    "url": "",
+    "_색상": [
+      "Alpine Rose",
+      "Black"
+    ]
+  },
+  "arcteryx-atom-sl-hoody-women": {
+    "url": "",
+    "_색상": [
+      "Black",
+      "Sea Salt",
+      "Alpine Blue",
+      "Arctic Silk"
+    ]
+  },
+  "arcteryx-beta-ar-jacket-men": {
+    "url": "",
+    "_색상": [
+      "Black",
+      "Cloud Void"
+    ]
+  },
+  "arcteryx-beta-ar-jacket-women": {
+    "url": "",
+    "_색상": [
+      "Black"
+    ]
+  },
+  "arcteryx-beta-jacket-men": {
+    "url": "",
+    "_색상": [
+      "Black",
+      "Sea Salt",
+      "Headwaters"
+    ]
+  },
+  "arcteryx-beta-sl-jacket-men": {
+    "url": "",
+    "_색상": [
+      "Black",
+      "Cloud"
+    ]
+  },
+  "arcteryx-clarkia-ar-insulated-hoody-women": {
+    "url": "",
+    "_색상": [
+      "Black",
+      "Lt Renegade"
+    ]
+  },
+  "arcteryx-coelle-jacket-women": {
+    "url": "",
+    "_색상": [
+      "Alpine Blue",
+      "Black"
+    ]
+  },
+  "arcteryx-elec-insulated-jacket-women": {
+    "url": "",
+    "_색상": [
+      "Black"
+    ]
+  },
+  "arcteryx-gamma-lightweight-hoody-men": {
+    "url": "",
+    "_색상": [
+      "Black",
+      "Void"
+    ]
+  },
+  "arcteryx-gamma-lightweight-hoody-women": {
+    "url": "",
+    "_색상": [
+      "Atmos Solitude",
+      "Black"
+    ]
+  },
+  "arcteryx-gamma-mx-hoody-women": {
+    "url": "",
+    "_색상": [
+      "Arctic Silk",
+      "Black"
+    ]
+  },
+  "arcteryx-naya-cropped-jacket-women": {
+    "url": "",
+    "_색상": [
+      "Black"
+    ]
+  },
+  "arcteryx-naya-cropped-stowhood-jacket-women": {
+    "url": "",
+    "_색상": [
+      "Black",
+      "Habitat"
+    ]
+  },
+  "arcteryx-proton-sl-hoody-men": {
+    "url": "",
+    "_색상": [
+      "Black",
+      "Sea Salt"
+    ]
+  },
+  "arcteryx-sentinel-jacket-women": {
+    "url": "",
+    "_색상": [
+      "Black"
+    ]
+  },
+  "arcteryx-serratus-hoody-men": {
+    "url": "",
+    "_색상": [
+      "Void Cloud"
+    ]
+  },
+  "arcteryx-squamish-hoody-men": {
+    "url": "",
+    "_색상": [
+      "Black",
+      "Habitat"
+    ]
+  },
+  "arcteryx-squamish-hoody-women": {
+    "url": "",
+    "_색상": [
+      "Black",
+      "Mongoose",
+      "Alpine Blue",
+      "Arctic Silk Sea Salt"
+    ]
+  },
+  "canada-goose-crofton-enduraluxe-vest-men": {
+    "url": "",
+    "_색상": [
+      "Black",
+      "Limestone"
+    ]
+  },
+  "canada-goose-freestyle-crew-vest-men": {
+    "url": "",
+    "_색상": [
+      "Black Disc / North Star White",
+      "Classic Disc / Atlantic Navy",
+      "Classic Disc / Black",
+      "Classic Disc / Graphite",
+      "Classic Disc / Limestone",
+      "Classic Disc / Sagebrush"
+    ]
+  },
+  "canada-goose-garson-vest-men": {
+    "url": "",
+    "_색상": [
+      "Black",
+      "Coastal Grey",
+      "North Star White",
+      "Taupe Grey",
+      "Terra",
+      "Volcano"
+    ]
+  },
+  "canada-goose-langford-parka-men": {
+    "url": "",
+    "_색상": [
+      "Classic Disc / Atlantic Navy",
+      "Classic Disc / Black",
+      "Classic Disc / Limestone",
+      "Classic Disc / Oxford Navy",
+      "Tonal Disc / Vireo Green",
+      "Black Disc / Black",
+      "Black Disc / Limestone",
+      "Black Disc / North Star White",
+      "Black Disc / Ozone Blue"
+    ]
+  },
+  "canada-goose-lodge-hoodie-men": {
+    "url": "",
+    "_색상": [
+      "Black Disc / Black",
+      "Black Disc / Desert Sand",
+      "Black Disc / Stratus Grey",
+      "Classic Disc / Atlantic Navy",
+      "Classic Disc / Black",
+      "Classic Disc / Carmine Red",
+      "Classic Disc / Military Tan"
+    ]
+  },
+  "canada-goose-macmillan-parka-men": {
+    "url": "",
+    "_색상": [
+      "Black Disc / Black",
+      "Black Disc / North Star White",
+      "Classic Disc / Atlantic Navy",
+      "Classic Disc / Black",
+      "Classic Disc / Granite Grey",
+      "Classic Disc / Limestone"
+    ]
+  },
+  "canada-goose-murray-parka-men": {
+    "url": "",
+    "_색상": [
+      "Black",
+      "Military Tan",
+      "Nocturne"
+    ]
+  },
+  "canada-goose-wyndham-parka-men": {
+    "url": "",
+    "_색상": [
+      "Black Disc / Black",
+      "Black Disc / Dusk Blue",
+      "Black Disc / Limestone",
+      "Black Disc / North Star White",
+      "Classic Disc / Atlantic Navy",
+      "Classic Disc / Black",
+      "Classic Disc / Granite Grey",
+      "Classic Disc / Limestone"
+    ]
+  },
+  "coach-brooklyn-shoulder-bag-28-women": {
+    "url": "",
+    "_색상": [
+      "Maple",
+      "natural grain leather Black",
+      "natural grain leather Maple",
+      "straw Dark Fuchsia",
+      "suede Dark Chocolate",
+      "suede Warm Brown"
+    ]
+  },
+  "coach-brooklyn-shoulder-bag-34-women": {
+    "url": "",
+    "_색상": [
+      "natural grain leather Black",
+      "natural grain leather Maple",
+      "suede Dark Chocolate",
+      "suede Warm Brown"
+    ]
+  },
+  "coach-chelsea-shoulder-bag-30-women": {
+    "url": "",
+    "_색상": [
+      "Black",
+      "Maple"
+    ]
+  },
+  "coach-ella-shoulder-bag-women": {
+    "url": "",
+    "_색상": [
+      "pebbled leather Black",
+      "suede Blush Pink"
+    ]
+  },
+  "coach-jade-drawstring-bag-women": {
+    "url": "",
+    "_색상": [
+      "Dark Chocolate"
+    ]
+  },
+  "coach-lana-shoulder-bag-19-women": {
+    "url": "",
+    "_색상": [
+      "Black",
+      "Chalk",
+      "Maple"
+    ]
+  },
+  "coach-station-carryall-bag-women": {
+    "url": "",
+    "_색상": [
+      "crinkle leather Black",
+      "signature canvas Tan Brown",
+      "signature canvas Black"
+    ]
+  },
+  "coach-teri-mini-crossbody-women": {
+    "url": "",
+    "_색상": [
+      "Black",
+      "pebbled leather Black",
+      "pebbled leather Maple",
+      "signature canvas Walnut Black",
+      "suede Warm Brown"
+    ]
+  },
+  "coach-teri-shoulder-bag-women": {
+    "url": "",
+    "_색상": [
+      "pebbled leather Black",
+      "pebbled leather Maple",
+      "signature canvas Walnut Black",
+      "suede Blush Pink"
+    ]
+  },
+  "lululemon-extra-large-claw-hair-clip-women": {
+    "url": "",
+    "_색상": [
+      "Flamingo Fun",
+      "French Press / Burnt Caramel",
+      "Light Ivory / Black",
+      "Light Ivory / White",
+      "Lilac Play / White",
+      "Sweet Sorbet / Pink Pearl"
+    ]
+  },
+  "lululemon-fast-and-free-trail-running-vest-men": {
+    "url": "",
+    "_색상": [
+      "Beach Ball Blue",
+      "Sassy Sage / Cypress Forest",
+      "black"
+    ]
+  },
+  "lululemon-fast-and-free-trail-running-vest-women": {
+    "url": "",
+    "_색상": [
+      "Candy Cloud",
+      "Foam Cloud",
+      "Lilac Play",
+      "Pink Flare",
+      "Pink Pearl",
+      "black"
+    ]
+  },
+  "lululemon-jumbo-claw-clip-women": {
+    "url": "",
+    "_색상": [
+      "Flamingo Fun",
+      "French Press / Burnt Caramel",
+      "Light Ivory / Black",
+      "Light Ivory / White",
+      "Pink Parfait / Pink Peony",
+      "Sweet Sorbet / Pink Pearl"
+    ]
+  },
+  "polo-cable-knit-cotton-cardigan-men": {
+    "url": "",
+    "_색상": [
+      "Camel Melange",
+      "Fawn Grey Heather",
+      "Hunter Navy"
+    ]
+  },
+  "polo-cable-knit-cotton-crewneck-cardigan-women": {
+    "url": "",
+    "_색상": [
+      "Carmel Pink",
+      "Hunter Navy",
+      "New Litchfield Blue",
+      "Polo Black",
+      "White"
+    ]
+  },
+  "polo-cable-knit-cotton-crewneck-sweater-women": {
+    "url": "",
+    "_색상": [
+      "Collection Camel Melange",
+      "Fawn Grey Heather",
+      "Hunter Navy",
+      "New Litchfield Blue",
+      "Polo Black / White",
+      "cream",
+      "white"
+    ]
+  },
+  "polo-cable-knit-cotton-full-zip-sweater-men": {
+    "url": "",
+    "_색상": [
+      "Fawn Grey Heather",
+      "Hunter Navy"
+    ]
+  },
+  "polo-cable-knit-cotton-polo-sweater-men": {
+    "url": "",
+    "_색상": [
+      "Andover Cream",
+      "Fawn Grey Heather",
+      "Hunter Navy",
+      "Polo Black"
+    ]
+  },
+  "polo-cable-knit-cotton-quarter-zip-sweater-women": {
+    "url": "",
+    "_색상": [
+      "Hunter Navy",
+      "White"
+    ]
+  },
+  "polo-cable-knit-wool-cashmere-cardigan-men": {
+    "url": "",
+    "_색상": [
+      "Fawn Grey Heather",
+      "Sea Salt Blue Heather"
+    ]
+  },
+  "polo-cable-knit-wool-cashmere-polo-sweater-women": {
+    "url": "",
+    "_색상": [
+      "Authentic Cream",
+      "Collection Camel Melange",
+      "Flannel Grey Heather"
+    ]
+  },
+  "polo-cable-knit-wool-cashmere-sweater-men": {
+    "url": "",
+    "_색상": [
+      "Fawn Grey Heather",
+      "Hunter Navy"
+    ]
+  },
+  "polo-cable-knit-wool-cashmere-sweater-women": {
+    "url": "",
+    "_색상": [
+      "Collection Camel Melange",
+      "Hunter Navy",
+      "New Litchfield Blue"
+    ]
+  },
+  "polo-cable-knit-wool-cashmere-sweater2-men": {
+    "url": "",
+    "_색상": [
+      "Andover Cream",
+      "Blue Borage Heather",
+      "Fawn Grey Heather",
+      "Hunter Navy",
+      "Polo Black"
+    ]
+  }
+}

@@ -3,7 +3,9 @@
  * 기본은 드라이런 — `--write`를 줘야 파일을 만든다.
  *
  * 폴더 구조:  아크테릭스/{남성|여성}/{상품명}/  또는  아크테릭스/ACC_{상품명}/
- * 파일명:     F26-{SKU}-{상품명 슬러그}-{색상}[-Women-s]-{뷰}.avif
+ * 파일명:     F26-{SKU}-{상품명 슬러그}-{색상}[-Women-s]-{뷰}.{avif|jpg|png|webp}
+ * 가격:       「가격표 비교.xlsx」가 1순위. 행이 없으면 폴더의 `가격.txt`
+ *             (`770CAD` 또는 `색상: 588CAD`) — 아울렛처럼 엑셀에 없는 상품용이다.
  */
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -12,6 +14,12 @@ import { inflateRawSync } from 'node:zlib';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const SRC = join(ROOT, '아크테릭스');
+
+/** 상품 이미지로 인정하는 확장자. 손으로 받은 avif 와 `npm run intake` 가 받은 jpg 가 섞인다. */
+const IMAGE_RE = /\.(avif|jpe?g|png|webp)$/i;
+
+/** 색상 표기 차이(공백·슬래시·대소문자)만 걷어낸 대조 키. */
+export const colourKey = (s) => String(s ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
 /** 파일명 끝에 붙는 뷰 종류. 긴 것부터 매칭해야 `Front-View`가 `View`로 잘리지 않는다. */
 const VIEWS = [
@@ -28,14 +36,22 @@ function slugifyName(name) {
 }
 
 function parseFile(fileName, productName) {
-  const base = fileName.replace(/\.avif$/i, '').replace(/\s*\(\d+\)$/, '');
+  const base = fileName.replace(IMAGE_RE, '').replace(/\s*\(\d+\)$/, '');
   // 시즌 접두사는 F26·S26·F25처럼 F/S 둘 다 온다
   const m = base.match(/^[FS]\d{2}-(X\d+)-(.+)$/);
   if (!m) return null;
   const [, sku, rest0] = m;
 
-  // 상품명 슬러그를 앞에서 떼어낸다 (폴더명이 정답을 준다)
-  const nameSlug = slugifyName(productName.replace(/\s+(Men|Women)'s$/i, ''));
+  /*
+   * 상품명 슬러그를 앞에서 떼어낸다 (폴더명이 정답을 준다).
+   *
+   * `(Outlet)` 은 우리가 붙인 구분표지지 브랜드 상품명이 아니다 — 같은 이름의 상품이
+   * 정가·아울렛으로 따로 팔릴 때 슬러그를 가르려고 폴더명에만 넣는다. 파일명에는
+   * 없으므로 여기서 떼지 않으면 상품명이 안 맞아 색상 자리에 상품명이 통째로 들어간다.
+   */
+  const nameSlug = slugifyName(
+    productName.replace(/\s*\(Outlet\)/i, '').replace(/\s+(Men|Women)'s$/i, ''),
+  );
   let rest = rest0.startsWith(nameSlug + '-') ? rest0.slice(nameSlug.length + 1) : rest0;
 
   // 성별 표기 제거
@@ -95,6 +111,40 @@ async function readPriceSheet() {
   return rows;
 }
 
+/**
+ * 폴더의 `가격.txt` 를 읽는다. 「가격표 비교.xlsx」에 행이 없는 상품(아울렛)용이다.
+ *
+ *   770CAD                      상품 전체
+ *   Stone Red / Dk Stone: 588CAD  색상 하나 — 아울렛은 같은 상품에서도 색마다 값이 갈린다
+ *
+ * 파일이 없으면 null 이고 그건 오류가 아니다. 엑셀에 행이 있는 상품이 대부분이다.
+ */
+async function readPriceFile(dir) {
+  let text;
+  try {
+    text = await readFile(join(dir, '가격.txt'), 'utf8');
+  } catch {
+    return null;
+  }
+
+  let cad = null;
+  const byColour = {};
+  for (const raw of text.split('\n')) {
+    const line = raw.trim();
+    if (!line || line.startsWith('#')) continue;
+
+    const withColour = line.match(/^(.+?)\s*:\s*([0-9]+(?:\.[0-9]+)?)\s*CAD$/i);
+    if (withColour) {
+      byColour[colourKey(withColour[1])] = Number(withColour[2]);
+      continue;
+    }
+    const bare = line.match(/^([0-9]+(?:\.[0-9]+)?)\s*CAD$/i);
+    if (bare) cad = Number(bare[1]);
+  }
+
+  return cad === null && Object.keys(byColour).length === 0 ? null : { cad, byColour };
+}
+
 export async function parseAll() {
   const priceRows = await readPriceSheet();
   const prices = new Map();
@@ -127,7 +177,7 @@ export async function parseAll() {
 
   const products = [];
   for (const g of groups) {
-    const files = (await readdir(g.dir)).filter((f) => /\.avif$/i.test(f));
+    const files = (await readdir(g.dir)).filter((f) => IMAGE_RE.test(f));
     const parsed = files.map((f) => parseFile(f, g.name)).filter(Boolean);
     const colors = new Map();
     for (const p of parsed) {
@@ -144,9 +194,17 @@ export async function parseAll() {
       colors: [...colors.entries()].map(([color, imgs]) => ({
         color,
         images: imgs,
+        /*
+         * **색상마다 상품코드가 다를 수 있다.** 같은 이름의 상품이 세대별로 따로 팔리면
+         * (아울렛) 한 폴더에 두 코드가 섞인다. 상품 단위 `sku`(첫 파일 값)를 모든 색상에
+         * 쓰면 절반은 없는 코드가 되어 재고가 조용히 안 붙는다.
+         */
+        sku: imgs[0]?.sku ?? parsed[0]?.sku ?? null,
         hero: HERO_ORDER.map((v) => imgs.find((i) => i.view === v)).find(Boolean) ?? imgs[0],
       })),
       price,
+      /** 엑셀에 행이 없을 때 쓰는 폴더 가격. 있으면 엑셀이 이긴다. */
+      priceFile: await readPriceFile(g.dir),
     });
   }
   return products;
@@ -158,8 +216,11 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   console.log(`상품 ${products.length}개\n`);
   for (const p of products) {
     const cols = p.colors.map((c) => `${c.color}(${c.images.length})`).join(', ');
-    const price = p.price ? `CAD ${p.price.cad} → ${p.price.priceKrw?.toLocaleString() ?? '?'}원` : '⚠ 가격 없음';
-    if (!p.price) missing++;
+    const fallback = p.priceFile ? `CAD ${p.priceFile.cad ?? '색상별'} (가격.txt)` : null;
+    const price = p.price
+      ? `CAD ${p.price.cad} → ${p.price.priceKrw?.toLocaleString() ?? '?'}원`
+      : (fallback ?? '⚠ 가격 없음');
+    if (!p.price && !p.priceFile) missing++;
     if (p.colors.some((c) => !c.hero)) noHero++;
     console.log(`${p.gender.padEnd(7)} ${p.name}`);
     console.log(`  ${p.sku} · ${price}`);

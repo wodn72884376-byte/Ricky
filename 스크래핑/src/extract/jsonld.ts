@@ -191,6 +191,98 @@ function dropRepresentative(variants: Variant[]): Variant[] {
 }
 
 /**
+ * `"Canada Goose Crofton EnduraLuxe Vest (Men, Black, XXL)"` 에서 `Black` 을 캔다.
+ *
+ * 끝 괄호의 마지막 칸이 그 offer 의 사이즈와 같을 때만, 그 앞 칸을 색상으로 본다.
+ * 조건을 달지 않으면 색상 축이 없는 `"(Men, XXL)"` 에서 `Men` 을 색상이라고 답한다.
+ */
+function colourFromName(name: string | null, size: string | null): string | null {
+  if (!name || !size) return null;
+  const m = /\(([^()]*)\)\s*$/.exec(name);
+  if (!m) return null;
+  const parts = m[1]!.split(',').map((x) => x.trim()).filter(Boolean);
+  if (parts.length < 2) return null;
+  if (parts[parts.length - 1]!.toLowerCase() !== size.toLowerCase()) return null;
+  return parts[parts.length - 2] || null;
+}
+
+/**
+ * 색상 축이 진짜 있는지 확인하고, 아니면 색상을 지운다.
+ *
+ * 한 사이즈가 두 번 이상 나오면 다른 축(색상)이 있다는 뜻이다. 전부 한 번씩이면
+ * 그 페이지엔 색상이 하나뿐이므로, 이름에서 캔 값은 색상이 아닐 수 있다
+ * (성별·카테고리 같은 것). 그때는 비워 두고 URL·카탈로그가 판단하게 둔다.
+ *
+ * 한계: 색상마다 사이즈가 겹치지 않는 상품(A=XS·S, B=M·L)은 색상을 못 가른다.
+ * 드물고, 못 가르면 예전처럼 색상 없이 남을 뿐이라 재고 자체는 잃지 않는다.
+ */
+function confirmColourAxis(variants: Variant[]): Variant[] {
+  const seen = new Set<string>();
+  let repeated = false;
+  for (const v of variants) {
+    const k = (v.size ?? '').toLowerCase();
+    if (!k) continue;
+    if (seen.has(k)) { repeated = true; break; }
+    seen.add(k);
+  }
+  return repeated ? variants : variants.map((v) => ({ ...v, color: null }));
+}
+
+/**
+ * `offers` 배열 하나하나를 variant 로 세운다.
+ *
+ * 캐나다구스는 `hasVariant` 를 쓰지 않는다. 평범한 `Product` 에 offer 를 사이즈 수만큼
+ * 달고, 사이즈는 offer 안 `additionalProperty` 에 `{name:'size', value:'XXL'}` 로 넣는다.
+ * `hasVariant` 만 보면 offer 배열이 **하나로 접혀** 사이즈 없는 행 하나가 남고,
+ * 그 상품은 "재고를 못 받았다"로 조용히 빠진다 — 실측으로 8개 상품이 그랬다.
+ */
+function readOfferVariants(node: Json, expected: 'CAD' | 'KRW'): Variant[] {
+  const list = Array.isArray(node.offers) ? node.offers : [];
+  if (list.length < 2) return []; // 하나뿐이면 기존 단일 상품 경로가 맞다
+
+  const out: Variant[] = [];
+  for (const o of list) {
+    if (!o || typeof o !== 'object') continue;
+    const off = o as Json;
+    const props = Array.isArray(off.additionalProperty)
+      ? off.additionalProperty
+      : off.additionalProperty
+        ? [off.additionalProperty]
+        : [];
+
+    let size: string | null = null;
+    let color: string | null = null;
+    for (const raw of props) {
+      if (!raw || typeof raw !== 'object') continue;
+      const pv = raw as Json;
+      const key = (str(pv.name) ?? '').toLowerCase();
+      const value = str(pv.value);
+      if (!value) continue;
+      if (key === 'size') size ??= value;
+      else if (key === 'color' || key === 'colour') color ??= value;
+    }
+    // 색상이 따로 없으면 이름 끝 괄호에서 캔다 — "…(Men, Black, XXL)"
+    color ??= colourFromName(str(off.name), size);
+    if (!size && !color) continue; // 사이즈도 색상도 없으면 구매 단위가 아니다
+
+    const one = readOffer(off);
+    if (one.currency && one.currency !== expected) continue;
+
+    out.push({
+      sku: str(off.sku) ?? str(off.mpn) ?? null,
+      gtin: str(off.gtin14) ?? str(off.gtin13) ?? str(off.gtin) ?? null,
+      color,
+      size,
+      priceMinor: expected === 'CAD' ? one.priceMinorCad : one.priceKrw,
+      listPriceMinor: null,
+      availability: one.availability,
+      imageUrl: null,
+    });
+  }
+  return confirmColourAxis(out);
+}
+
+/**
  * HTML 에서 상품 1건을 뽑는다. 없으면 null.
  * @param expected 이 페이지에서 나와야 하는 통화. 다르면 수집분을 무효 처리한다.
  */
@@ -219,6 +311,8 @@ export function extractProductFromNodes(
   if (!node) return null;
 
   let variants = dropRepresentative(readVariants(node, expected));
+  // hasVariant 가 없으면 offers 배열이 곧 variant 목록인 사이트가 있다 (캐나다구스)
+  if (variants.length === 0) variants = dropRepresentative(readOfferVariants(node, expected));
   const groupOffer = readOffer(node.offers);
 
   /*

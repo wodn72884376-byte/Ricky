@@ -8,7 +8,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-import { BRANDS, ALL_BRAND_KEYS } from '../config/brands.ts';
+import { BRANDS, ALL_BRAND_KEYS, belongsToSite } from '../config/brands.ts';
 import { log } from '../core/logger.ts';
 import type { BrandKey } from '../core/types.ts';
 import { extractProductFromNodes } from '../extract/jsonld.ts';
@@ -29,15 +29,11 @@ import type { ProductStock, StockRow } from './types.ts';
 
 /** URL 로 브랜드를 판정한다. 모르는 사이트면 null. */
 export function brandFromUrl(url: string): BrandKey | null {
-  let origin: string;
-  try {
-    origin = new URL(url).origin;
-  } catch {
-    return null;
-  }
   for (const key of ALL_BRAND_KEYS) {
     const cfg = BRANDS[key];
-    if (origin === cfg.ca.origin || origin === cfg.kr?.origin) return key;
+    // 한 브랜드가 호스트를 둘 이상 쓴다 (아크테릭스 정가몰 · 아울렛).
+    if (belongsToSite(cfg.ca, url)) return key;
+    if (cfg.kr && belongsToSite(cfg.kr, url)) return key;
   }
   return null;
 }
@@ -135,7 +131,8 @@ export function captureToStock(capture: StockCapture): ProductStock {
     source: 'manual',
   }));
 
-  const merged = applyDomTruth(rows, capture, brand, checkedAt, productCode, product.name);
+  let merged = applyDomTruth(rows, capture, brand, checkedAt, productCode, product.name);
+  if (BRANDS[brand].ca.omitsSoldOut) merged = fillOmittedSoldOut(merged);
 
   merged.sort(
     (a, b) =>
@@ -223,6 +220,45 @@ export function looksLikeSize(label: string): boolean {
   return SIZE_TOKEN.test(label.trim());
 }
 
+/**
+ * 품절을 안 싣는 사이트에서, 빠진 칸을 품절로 채운다.
+ *
+ * 캐나다구스는 offer 를 전부 `InStock` 으로 주고 **품절 사이즈는 목록에서 뺀다**
+ * (실측 285/285 InStock). 그대로 두면 리포트가 늘 `7/7` 이라 품절이 보이지 않는다.
+ *
+ * 같은 페이지의 **다른 색상에서 본 사이즈**를 축으로 삼는다. 그 페이지가 파는
+ * 사이즈 범위를 사이트 스스로 말해 준 것이라, 카탈로그의 추정 사이즈보다 정확하다.
+ * 색상이 하나뿐이면 축을 세울 근거가 없으므로 손대지 않는다.
+ *
+ * 없는 것을 있다고 하지 않는다 — 채우는 값은 언제나 품절이다.
+ */
+export function fillOmittedSoldOut(rows: StockRow[]): StockRow[] {
+  const colours = new Set(rows.map((r) => r.colour).filter((c): c is string => !!c));
+  if (colours.size < 2) return rows;
+
+  const axis = [...new Set(rows.map((r) => r.size.label))].filter((l) => l !== '-');
+  if (axis.length === 0) return rows;
+
+  const have = new Set(rows.map((r) => `${r.colour}|${r.size.label}`));
+  const out = [...rows];
+
+  for (const colour of colours) {
+    const template = rows.find((r) => r.colour === colour);
+    if (!template) continue;
+    for (const label of axis) {
+      if (have.has(`${colour}|${label}`)) continue;
+      out.push({
+        ...template,
+        sku: null,
+        gtin: null,
+        size: { declared: label, code: label, width: null, label },
+        availability: 'out_of_stock',
+      });
+    }
+  }
+  return out;
+}
+
 type MergeContext = {
   brand: BrandKey;
   checkedAt: string;
@@ -306,7 +342,10 @@ export function mergeProductStock(parts: ProductStock[]): ProductStock {
  * 디렉터리에서 수집 파일을 읽는다.
  * 같은 URL 이 여러 번 잡혔으면 합친다(색상별로 나눠 캡처하는 경우).
  */
-export async function importCaptures(dir: string): Promise<ProductStock[]> {
+export async function importCaptures(
+  dir: string,
+  opts: { catalogFp?: string; targetsFp?: string } = {},
+): Promise<ProductStock[]> {
   let files: string[];
   try {
     files = (await readdir(dir)).filter(
@@ -328,6 +367,10 @@ export async function importCaptures(dir: string): Promise<ProductStock[]> {
   const byProduct = new Map<string, ProductStock[]>();
   let skipped = 0;
   let batchFiles = 0;
+  /** 캡처에 실린 카탈로그 지문들. 지금 카탈로그와 다르면 북마클릿이 낡았다. */
+  const seenFps = new Set<string>();
+  /** 확장 캡처에 실린 '열기로 되어 있던 페이지' 지문들. */
+  const seenTargetFps = new Set<string>();
 
   for (const f of files.sort()) {
     try {
@@ -336,7 +379,16 @@ export async function importCaptures(dir: string): Promise<ProductStock[]> {
         skipped += 1;
         continue;
       }
-      if (capture.batch?.length) batchFiles += 1;
+      if (capture.batch?.length) {
+        batchFiles += 1;
+        if (capture.source === 'extension') {
+          // 확장은 대상 목록으로 본다. 상품 목록 지문은 확장에 맞지 않는다.
+          seenTargetFps.add(capture.targetsFp ?? NO_FINGERPRINT);
+        } else {
+          // 지문이 아예 없으면 지문 기능보다 오래된 북마클릿이다 — 그 자체로 낡았다.
+          seenFps.add(capture.catalogFp ?? NO_FINGERPRINT);
+        }
+      }
 
       for (const stock of captureToStocks(capture)) {
         const key = canonicalUrl(stock.productUrl);
@@ -347,6 +399,32 @@ export async function importCaptures(dir: string): Promise<ProductStock[]> {
     } catch {
       skipped += 1;
     }
+  }
+
+  /*
+   * 북마클릿은 등록 상품 목록을 **안에 박아** 배포한다. 상품을 추가해도 브라우저의
+   * 북마크는 옛 목록 그대로라, 새 상품이 수집에서 조용히 빠진다.
+   * 사람이 기억할 일이 아니므로 여기서 말해 준다.
+   */
+  if (opts.catalogFp && seenFps.size > 0 && !seenFps.has(opts.catalogFp)) {
+    log.warn(
+      '북마클릿이 낡았다 — 심겨 있는 등록 상품 목록이 지금 카탈로그와 다르다.\n' +
+        '  새로 등록한 상품은 목록수집에서 조용히 빠진다.\n' +
+        '  npm run bookmarklet 으로 다시 설치해라 (두 버튼 다시 드래그).',
+    );
+  }
+
+  /*
+   * 상품 목록이 그대로여도 **열 페이지 목록**은 바뀔 수 있다. 실측: 캐나다구스 URL 을
+   * 카탈로그에 채워 대상이 15 → 29페이지가 됐는데 카탈로그 지문은 변하지 않아
+   * 위 경고가 울리지 않았고, 크롬의 옛 확장이 캐나다구스 8건을 통째로 건너뛰었다.
+   */
+  if (opts.targetsFp && seenTargetFps.size > 0 && !seenTargetFps.has(opts.targetsFp)) {
+    log.warn(
+      '크롬 확장이 낡았다 — 심겨 있는 수집 대상이 지금과 다르다.\n' +
+        '  새로 주소를 채운 상품은 확장이 열지 않아 조용히 빠진다.\n' +
+        '  npm run extension 으로 다시 만들고 chrome://extensions 에서 새로고침(⟳) 해라.',
+    );
   }
 
   const multi = [...byProduct.values()].filter((v) => v.length > 1).length;
@@ -360,6 +438,9 @@ export async function importCaptures(dir: string): Promise<ProductStock[]> {
     parts.length === 1 ? parts[0]! : mergeProductStock(parts),
   );
 }
+
+/** 지문 기능 이전에 만들어진 캡처. 지문이 없다는 것 자체가 낡았다는 뜻이다. */
+const NO_FINGERPRINT = '(없음)';
 
 /** 색상 선택 등으로 붙는 쿼리·해시를 떼어 같은 상품을 하나로 본다. */
 export function canonicalUrl(url: string): string {

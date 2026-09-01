@@ -7,6 +7,18 @@ let db: PGlite;
 beforeAll(async () => { db = await createTestDb(); }, 60_000);
 afterAll(async () => { await db?.close(); });
 
+/**
+ * 회원 한 명. `auth.users` 에 넣으면 `handle_new_user()` 트리거가 `customers` 를 만든다 —
+ * 여기서 customers 를 직접 넣지 않는 이유는, 그 경로가 실제 가입 경로가 아니기 때문이다.
+ */
+async function seedCustomer(email: string | null = 'member@example.com') {
+  const { rows } = await db.query<{ id: string }>(
+    `insert into auth.users (email, raw_user_meta_data) values ($1, '{"name":"김재우"}') returning id`,
+    [email],
+  );
+  return rows[0]!.id;
+}
+
 /** 테스트용 최소 주문 한 건에 필요한 부속을 만든다. */
 async function seedVariant() {
   const { rows } = await db.query<{ id: string }>(`
@@ -28,6 +40,7 @@ async function seedVariant() {
 
 async function insertOrder(overrides: Record<string, unknown> = {}) {
   const base = {
+    customer_id: await seedCustomer(),
     receiver_name: '김재우',
     receiver_phone: '010-1234-5678',
     postcode: '06236',
@@ -36,7 +49,7 @@ async function insertOrder(overrides: Record<string, unknown> = {}) {
     subtotal_krw: 742_000,
     shipping_krw: 18_000,
     total_krw: 760_000,
-    contact_email: 'guest@example.com',
+    contact_email: 'member@example.com',
     ...overrides,
   };
   const cols = Object.keys(base);
@@ -80,18 +93,46 @@ describe('주문번호 생성 (docs/IA.md §5-2)', () => {
   });
 });
 
-describe('게스트 주문 연락 수단 (docs/IA.md §5-1)', () => {
-  it('contact_email과 customer_id가 둘 다 없으면 거부한다', async () => {
-    await expect(insertOrder({ contact_email: null })).rejects.toThrow(/orders_contact_reachable/);
+describe('회원 전용 주문 (20260829000008_members_only.sql)', () => {
+  it('customer_id 없이는 주문이 성립하지 않는다', async () => {
+    await expect(insertOrder({ customer_id: null })).rejects.toThrow();
+  });
+
+  it('contact_email 없이는 주문이 성립하지 않는다 — 연락 수단은 주문마다 확정된다', async () => {
+    await expect(insertOrder({ contact_email: null })).rejects.toThrow();
   });
 
   it('형식이 아닌 이메일을 거부한다', async () => {
     await expect(insertOrder({ contact_email: 'not-an-email' })).rejects.toThrow();
   });
 
-  it('게스트 주문은 customer_id 없이 성립한다', async () => {
-    const orderNo = await insertOrder({ contact_email: 'guest2@example.com' });
-    expect(orderNo).toBeTruthy();
+  it('주문 기록이 있는 회원은 지워지지 않는다 — 거래 기록 보존', async () => {
+    const customerId = await seedCustomer('keep@example.com');
+    await insertOrder({ customer_id: customerId });
+    await expect(db.query(`delete from customers where id = $1`, [customerId])).rejects.toThrow(
+      /orders_customer_id_fkey/,
+    );
+  });
+});
+
+describe('소셜 가입 트리거 (20260829000008_members_only.sql A)', () => {
+  it('가입하면 customers 행이 자동으로 생긴다', async () => {
+    const id = await seedCustomer('new@example.com');
+    const { rows } = await db.query<{ email: string; name: string }>(
+      `select email, name from customers where id = $1`,
+      [id],
+    );
+    expect(rows[0]).toEqual({ email: 'new@example.com', name: '김재우' });
+  });
+
+  it('이메일을 주지 않는 계정(네이버)도 회원이 된다', async () => {
+    const id = await seedCustomer(null);
+    const { rows } = await db.query<{ email: string | null }>(
+      `select email from customers where id = $1`,
+      [id],
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.email).toBeNull();
   });
 });
 
@@ -126,13 +167,34 @@ describe('후기 (docs/IA.md §5-5)', () => {
   });
 });
 
-describe('재입고 알림 (docs/IA.md §5-4)', () => {
-  it('같은 옵션에 같은 이메일이 중복 신청되지 않는다', async () => {
+describe('재입고 알림 (docs/IA.md §5-4 · 회원 전용)', () => {
+  const insertAlert = (variantId: string, customerId: string) =>
+    db.query(`insert into restock_alerts (variant_id, customer_id) values ($1, $2)`, [
+      variantId,
+      customerId,
+    ]);
+
+  it('같은 옵션에 같은 회원이 중복 신청되지 않는다', async () => {
     const variantId = await seedVariant();
-    await db.query(`insert into restock_alerts (variant_id, contact_email) values ($1, 'a@example.com')`, [variantId]);
+    const customerId = await seedCustomer('alert@example.com');
+    await insertAlert(variantId, customerId);
+    await expect(insertAlert(variantId, customerId)).rejects.toThrow();
+  });
+
+  it('비회원은 신청할 수 없다 — 알림을 보낼 주체가 정해지지 않는다', async () => {
+    const variantId = await seedVariant();
     await expect(
-      db.query(`insert into restock_alerts (variant_id, contact_email) values ($1, 'a@example.com')`, [variantId]),
+      db.query(`insert into restock_alerts (variant_id, contact_email) values ($1, 'a@example.com')`, [
+        variantId,
+      ]),
     ).rejects.toThrow();
+  });
+
+  // 이메일이 없는 회원(네이버)도 신청할 수 있어야 한다. 신원은 계정이지 이메일이 아니다.
+  it('이메일 없는 회원도 신청할 수 있다', async () => {
+    const variantId = await seedVariant();
+    const customerId = await seedCustomer(null);
+    await expect(insertAlert(variantId, customerId)).resolves.toBeTruthy();
   });
 });
 
@@ -174,6 +236,122 @@ describe('스토어 노출 뷰 — 원가가 새지 않는다 (PROJECT.md §3.1)
     for (const leaked of ['cost_cad_cents', 'fx_cad_krw', 'margin_rate']) {
       expect(cols).not.toContain(leaked);
     }
+  });
+});
+
+/**
+ * 20260830000011 — 컬럼 단위 grant.
+ *
+ * RLS는 행 단위라 `orders_self_read` 같은 정책은 통과한 행의 **모든** 컬럼을 내보낸다.
+ * 뷰를 만들어 둔 것만으로는 기반 테이블이 막히지 않는다 — 실제로 익명 요청이
+ * `product_variants.cost_cad_cents` 를 읽을 수 있었다.
+ *
+ * PGlite에는 Supabase의 기본 grant(`grant all ... to anon, authenticated`)가 없으므로
+ * "회수됐다"는 검사는 여기서 자동으로 통과한다. 의미가 있는 것은 **명시적으로 준 쪽**이다 —
+ * 아래 허용 컬럼 검사는 이 마이그레이션이 있어야만 통과한다.
+ */
+describe('컬럼 단위 grant — 원가·환율이 고객 롤에 없다 (CLAUDE.md 규칙 1)', () => {
+  /** 마이그레이션 20260830000011의 denylist와 같아야 한다 */
+  const SECRET: Record<string, string[]> = {
+    orders: ['fx_cad_krw'],
+    order_items: ['cost_snapshot_cad_cents'],
+    shipments: ['shipping_cost_cad_cents'],
+  };
+
+  async function columnsOf(table: string) {
+    const { rows } = await db.query<{ column_name: string }>(
+      `select column_name from information_schema.columns
+        where table_schema = 'public' and table_name = $1`,
+      [table],
+    );
+    return rows.map((r) => r.column_name);
+  }
+
+  async function granted(table: string, column: string) {
+    const { rows } = await db.query<{ ok: boolean }>(
+      `select has_column_privilege('authenticated', $1, $2, 'select') as ok`,
+      [`public.${table}`, column],
+    );
+    return rows[0]!.ok;
+  }
+
+  for (const [table, secrets] of Object.entries(SECRET)) {
+    it(`${table} — 원가·환율 컬럼은 authenticated에 없다`, async () => {
+      for (const column of secrets) {
+        expect(await granted(table, column)).toBe(false);
+      }
+    });
+
+    /*
+      컬럼을 추가하는 마이그레이션이 grant를 빠뜨리면 여기서 깨진다.
+      빠뜨린 컬럼은 런타임에 `permission denied` 로 나타나는데, 우리 조회는
+      전부 try/catch 안에 있어서 "주문을 볼 수 없어요"로 조용히 둔갑한다.
+    */
+    it(`${table} — 나머지 컬럼은 전부 grant 되어 있다`, async () => {
+      const missing: string[] = [];
+      for (const column of await columnsOf(table)) {
+        if (secrets.includes(column)) continue;
+        if (!(await granted(table, column))) missing.push(column);
+      }
+      expect(missing).toEqual([]);
+    });
+  }
+
+  it('product_variants 공개 읽기 정책이 없다 — 스토어는 store_variants 뷰로만 읽는다', async () => {
+    const { rows } = await db.query<{ policyname: string }>(
+      `select policyname from pg_policies
+        where schemaname = 'public' and tablename = 'product_variants'`,
+    );
+    const names = rows.map((r) => r.policyname);
+    expect(names).not.toContain('variants_public_read');
+    // 관리자 경로는 남아 있어야 한다 — 상품 등록·수정이 원가를 쓴다
+    expect(names).toContain('product_variants_admin_all');
+  });
+});
+
+/**
+ * 20260830000012 — 게시 게이트.
+ *
+ * `products_public_read` 정책은 `status = 'active'` 를 걸지만, 스토어가 실제로 읽는
+ * `store_variants` 는 `security_invoker = off` 라 그 RLS를 우회한다. 뷰의 where 절이
+ * 게이트를 직접 들고 있지 않으면 미게시 상품이 그대로 매대에 오른다.
+ */
+describe('store_variants — 미게시 상품은 뷰에 없다', () => {
+  it('draft는 뷰에 안 나오고, active로 바꾸면 나온다', async () => {
+    const { rows } = await db.query<{ id: string }>(
+      `insert into products (brand_id, name, slug, category, origin_country, status,
+                             material, care, manufacturer, as_contact, smartstore_url)
+       select id, '게시 게이트 테스트', 'view-gate-' || gen_random_uuid(), 'outerwear', 'CA', 'draft',
+              '겉감 나일론 100%', '드라이클리닝 금지', '테스트 법인', '02-000-0000',
+              'https://smartstore.naver.com/ricky/products/1'
+         from brands limit 1
+       returning id`,
+    );
+    const productId = rows[0]!.id;
+
+    await db.query(
+      `insert into product_variants (product_id, sku, size, color, price_krw, stock_type)
+       values ($1, 'VIEW-GATE-M', 'M', 'Black', 100000, 'on_demand')`,
+      [productId],
+    );
+
+    const inView = async () => {
+      const { rows: r } = await db.query<{ n: number }>(
+        `select count(*)::int as n from store_variants where product_id = $1`,
+        [productId],
+      );
+      return r[0]!.n;
+    };
+
+    // 옵션은 active 인데 상품이 draft다 — 팔 수 없는 것은 뷰에 없어야 한다
+    expect(await inView()).toBe(0);
+
+    await db.query(`update products set status = 'active' where id = $1`, [productId]);
+    expect(await inView()).toBe(1);
+
+    // 게시를 내리면 다시 사라진다
+    await db.query(`update products set status = 'paused' where id = $1`, [productId]);
+    expect(await inView()).toBe(0);
   });
 });
 
@@ -227,9 +405,24 @@ describe('상품 정보 제공 고시 게이트', () => {
     await expect(insertProduct('active', { ...FULL, origin_country: null })).rejects.toThrow();
   });
 
-  /* 결제가 스마트스토어에서 일어나므로 주소가 없으면 살 수 있는 경로가 없다 */
-  it('스마트스토어 주소가 없으면 active로 게시할 수 없다', async () => {
-    await expect(insertProduct('active', { ...FULL, smartstore_url: null })).rejects.toThrow();
+  /*
+   * 스마트스토어 주소는 게시 조건이 아니다 (20260831000015).
+   *
+   * 예전엔 "살 수 없는 상품을 판매 중으로 두지 않는다" 로 막았는데, 스토어 개설 전이라
+   * 주소가 전부 비어 **아무것도 게시할 수 없었다.** 게시가 없으면 store_variants 가 비고
+   * 재고 연동이 화면까지 오지 못한다.
+   *
+   * 살 수 없다는 사실은 화면이 이미 정직하게 말한다 — 구매 경로가 없으면 `바로 구매` 를
+   * 그리지 않고 "아직 판매를 준비하고 있어요" 를 보여 준다(product-options.tsx).
+   */
+  it('스마트스토어 주소가 없어도 게시할 수 있다 — 화면이 판매 준비 중으로 알린다', async () => {
+    await expect(insertProduct('active', { ...FULL, smartstore_url: null })).resolves.toBeDefined();
+  });
+
+  it('그래도 고시 항목은 그대로 요구한다 — 법이 요구하는 표기다', async () => {
+    await expect(
+      insertProduct('active', { ...FULL, smartstore_url: null, care: undefined }),
+    ).rejects.toThrow();
   });
 
   it('네이버가 아닌 주소는 아예 저장되지 않는다', async () => {

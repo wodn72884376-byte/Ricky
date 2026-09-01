@@ -29,7 +29,7 @@ export function EmptyState({
 }
 
 /** 필터·검색 결과 없음. 버튼 없음 — 사용자가 직접 필터를 조정한다 (§14) */
-export function EmptyResult({ message = '검색 결과가 없어요' }: { message?: string }) {
+export function EmptyResult({ message = '검색 결과가 없습니다' }: { message?: string }) {
   return (
     <p role="status" className="py-12 text-body text-muted-text">
       {message}

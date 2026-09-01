@@ -4,6 +4,13 @@ import { hasSupabaseEnv } from '@/lib/env';
 export type SessionUser = {
   id: string;
   email: string | null;
+  /**
+   * 로그인에 쓴 소셜 제공자(`google` · `kakao` · `custom:naver`).
+   *
+   * 이메일이 없는 계정이 있어서(네이버·카카오) "누구로 들어와 있는지"를 밝힐 수단이
+   * 이것뿐인 화면이 있다 (20260829000008 B).
+   */
+  provider: string | null;
   isAdmin: boolean;
 };
 
@@ -21,6 +28,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   return {
     id: data.user.id,
     email: data.user.email ?? null,
+    provider: (data.user.app_metadata.provider as string | undefined) ?? null,
     isAdmin: isAdmin === true,
   };
 }

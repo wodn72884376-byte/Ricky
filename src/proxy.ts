@@ -16,7 +16,15 @@ export async function proxy(request: NextRequest) {
     return new NextResponse(null, { status: 404 });
   }
 
-  let response = NextResponse.next({ request });
+  /*
+    현재 경로를 헤더로 흘려 준다. 레이아웃은 자기 경로를 모르는데, 로그인 벽이
+    "원래 가려던 곳"으로 되돌리려면 그 값이 필요하다 (`(store)/account/layout.tsx`).
+    요청자가 보낸 동명의 헤더는 여기서 덮어쓴다 — 신뢰 경계 안에서 우리가 정하는 값이다.
+  */
+  const headers = new Headers(request.headers);
+  headers.set('x-pathname', request.nextUrl.pathname + request.nextUrl.search);
+
+  let response = NextResponse.next({ request: { headers } });
 
   // Supabase가 설정되지 않았으면 세션 갱신할 것도 없다.
   // 모든 요청을 지나는 코드라 여기서 던지면 사이트 전체가 죽는다.
@@ -34,7 +42,7 @@ export async function proxy(request: NextRequest) {
           for (const { name, value } of cookiesToSet) {
             request.cookies.set(name, value);
           }
-          response = NextResponse.next({ request });
+          response = NextResponse.next({ request: { headers } });
           for (const { name, value, options } of cookiesToSet) {
             response.cookies.set(name, value, options);
           }

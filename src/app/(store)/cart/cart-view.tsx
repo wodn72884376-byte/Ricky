@@ -34,7 +34,7 @@ export function CartView() {
       <Container as="section" className="py-16">
         <h1 className="text-headline font-bold">장바구니</h1>
         <EmptyState
-          message="장바구니가 비어있어요."
+          message="장바구니가 비어있습니다."
           action={<ButtonLink href="/" chevron>상품 둘러보기</ButtonLink>}
         />
       </Container>
@@ -66,7 +66,7 @@ export function CartView() {
                 </Link>
                 {line.size && <span className="text-meta text-muted-text">사이즈 {line.size}</span>}
                 {!line.purchasable && (
-                  <span className="text-meta text-sale">지금은 주문할 수 없어요</span>
+                  <span className="text-meta text-sale">지금은 주문할 수 없습니다</span>
                 )}
 
                 <div className="mt-3 flex items-center gap-4">
@@ -103,7 +103,7 @@ export function CartView() {
                 {line.smartstoreUrl ? (
                   <NaverPayButton href={line.smartstoreUrl} className="mt-1 !h-11 !w-auto px-4" />
                 ) : (
-                  <span className="mt-1 text-meta text-muted-text">아직 판매 준비 중이에요</span>
+                  <span className="mt-1 text-meta text-muted-text">아직 판매 준비 중입니다</span>
                 )}
               </div>
             </li>
@@ -132,19 +132,19 @@ export function CartView() {
             {/* 관세는 각주 위계로. 경고색·아이콘·틴트 배경을 쓰지 않는다 (§12-9) */}
             <p className="mt-4 text-meta text-muted-text">
               {totals.customs.dutyFree
-                ? '관세·부가세 면제 예상이에요.'
+                ? '관세·부가세 면제 예상입니다.'
                 : `관세·부가세 약 ${formatKrw(totals.customs.totalTaxKrw)} 예상 (통관 시 수취인 납부)`}
             </p>
 
             {/* 합산과세 — 같은 날 도착분은 합쳐서 과세된다 */}
             {totals.customs.dutyFree ? (
               <p className="mt-3 text-meta text-muted-text">
-                {formatKrw(totals.headroomKrw)}까지 더 담아도 면세 예상이에요. 다만 같은 날 도착하는
-                다른 주문이 있으면 합산해서 과세돼요.
+                {formatKrw(totals.headroomKrw)}까지 더 담아도 면세 예상입니다. 다만 같은 날 도착하는
+                다른 주문이 있으면 합산해서 과세됩니다.
               </p>
             ) : (
               <p className="mt-3 text-meta text-muted-text">
-                미화 150달러를 넘어 과세 대상이에요. 같은 날 도착하는 다른 주문이 있으면 합산돼요.
+                미화 150달러를 넘어 과세 대상입니다. 같은 날 도착하는 다른 주문이 있으면 합산됩니다.
               </p>
             )}
 
@@ -153,8 +153,8 @@ export function CartView() {
               `주문하기` 하나를 두면 한 번에 결제되는 것처럼 읽힌다 — 그건 거짓말이다.
             */}
             <p className="mt-6 border-t border-outline pt-4 text-meta leading-relaxed text-muted-text">
-              결제는 상품마다 따로 해요. 합포장을 하지 않아서 배송도 상품별로 나가요.
-              왼쪽 목록에서 상품마다 <span className="text-ink">N Pay로 구매하기</span>를 눌러 주세요.
+              결제는 상품마다 따로 합니다. 합포장을 하지 않아서 배송도 상품별로 나갑니다.
+              왼쪽 목록에서 상품마다 <span className="text-ink">N Pay로 구매하기</span>를 눌러 주십시오.
             </p>
           </div>
         </aside>

@@ -59,8 +59,8 @@ export type ProductCardProps = {
 };
 
 const STATUS_CAPTION: Record<Exclude<ProductCardAvailability, 'available'>, string> = {
-  checking: '재고를 확인하고 있어요',
-  sold_out: '지금은 재입고를 기다리는 중이에요',
+  checking: '재고를 확인하고 있습니다',
+  sold_out: '지금은 재입고를 기다리는 중입니다',
 };
 
 export function ProductCard({

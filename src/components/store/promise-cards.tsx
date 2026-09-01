@@ -25,7 +25,15 @@ export type Promise = {
 
 export function PromiseCards({ promises }: { promises: Promise[] }) {
   return (
-    <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+    /*
+      넓은 화면에서 네 장이 한 줄에 들어온다 (2026-09-01 운영자 요청).
+      §5의 편집 그리드는 데스크톱 2열까지였지만, 이 카드들은 서로 읽는 순서가 없는
+      **병렬 항목**이라 한 줄에 놓일 때 네 약속이 한 눈에 세어진다.
+
+      4열은 `xl`(1440px)부터다. `lg`(1024px)에서 나누면 카드 폭이 220px로 떨어져
+      22px 타이틀이 네 줄로 접힌다 — 1440px에서는 324px이라 두 줄에 들어온다.
+    */
+    <div className="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-4">
       {promises.map((promise) => (
         <article key={promise.title} className="group flex flex-col">
           <Link href={promise.href} className="flex h-full flex-col">
@@ -43,7 +51,11 @@ export function PromiseCards({ promises }: { promises: Promise[] }) {
               <span className="text-meta font-bold text-muted-text">{promise.label}</span>
               <h3 className="text-editorial font-bold text-ink">{promise.title}</h3>
               <p className="text-body text-ink">{promise.body}</p>
-              <span className="mt-3 inline-flex items-center gap-1.5 text-cta font-bold text-ink group-hover:underline">
+              {/*
+                `mt-auto` — 본문 길이가 카드마다 다르므로 CTA를 바닥에 붙여 한 줄 안에서
+                높이를 맞춘다. 4열에서는 이게 없으면 화살표가 들쭉날쭉해진다.
+              */}
+              <span className="mt-auto inline-flex items-center gap-1.5 pt-3 text-cta font-bold text-ink group-hover:underline">
                 {promise.cta}
                 <ChevronRight />
               </span>

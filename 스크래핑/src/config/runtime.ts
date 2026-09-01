@@ -42,6 +42,8 @@ export const runtime = {
   paths: {
     cache: new URL('../../cache/', import.meta.url),
     data: new URL('../../data/', import.meta.url),
+    /** 상위 프로젝트(스마일리키) 루트. 운영자가 여는 파일은 여기에 둔다. */
+    app: new URL('../../../', import.meta.url),
   },
 
   /**

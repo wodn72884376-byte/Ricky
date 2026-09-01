@@ -4,10 +4,12 @@ import { Container } from '@/components/layout/container';
 import { ProductCard } from '@/components/store/product-card';
 import { ProductGallery } from '@/components/store/product-gallery';
 import { ProductDisclosureTable } from '@/components/store/product-disclosure-table';
+import { ProductSpecs } from '@/components/store/product-specs';
+import { ProductDetails } from '@/components/store/product-details';
 import { Disclosure } from '@/components/store/disclosure';
 import { ProductOptions } from './product-options';
 import { allProducts, byBrand, findProduct, hasVariantPricing, priceOf, shippingKrwOf, toCardProps } from '@/lib/catalog';
-import { brandHref } from '@/lib/nav';
+import { brandHref, type Gender } from '@/lib/nav';
 import { formatKrw } from '@/lib/money';
 
 /**
@@ -22,7 +24,16 @@ import { formatKrw } from '@/lib/money';
  */
 
 
-const GENDER_LABEL: Record<string, string> = { men: 'MEN', women: 'WOMEN', unisex: 'ALL' };
+const GENDER_LABEL: Record<string, string> = { men: 'MEN', women: 'WOMEN', unisex: 'ALL', kids: 'KIDS' };
+
+/**
+ * 브레드크럼이 돌아갈 목록.
+ *
+ * `unisex` 는 남녀 양쪽에 있으므로 아무 쪽이나 되고 남성으로 보낸다.
+ * **아동은 아동으로 보내야 한다** — 남성 목록으로 보내면 그 상품이 거기 없어서
+ * 빈 화면이거나 다른 상품 사이에서 길을 잃는다.
+ */
+const breadcrumbGender = (g: string): Gender => (g === 'women' || g === 'kids' ? g : 'men');
 
 export function generateStaticParams() {
   return allProducts().map((p) => ({ slug: p.slug }));
@@ -31,7 +42,8 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps<'/products/[slug]'>) {
   const { slug } = await params;
   const p = findProduct(slug);
-  return { title: p ? `${p.name} — RICKY` : 'RICKY' };
+  // 없는 상품이면 페이지가 notFound() 를 부르지만 메타데이터는 그 전에 만들어진다
+  return { title: p ? p.name : '없는 상품입니다' };
 }
 
 export default async function ProductPage({ params, searchParams }: PageProps<'/products/[slug]'>) {
@@ -64,7 +76,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<'/
         <Link href={`/brands/${product.brandSlug}`} className="hover:text-ink">{product.brand}</Link>
         <span className="mx-2">|</span>
         <Link
-          href={brandHref(product.brandSlug, product.gender === 'women' ? 'women' : 'men')}
+          href={brandHref(product.brandSlug, breadcrumbGender(product.gender))}
           className="hover:text-ink"
         >
           {GENDER_LABEL[product.gender]}
@@ -114,7 +126,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<'/
             )}
           </div>
           {hasVariantPricing(product) && (
-            <p className="mt-1 text-meta text-muted-text">고른 색상의 가격이에요. 소재에 따라 달라져요.</p>
+            <p className="mt-1 text-meta text-muted-text">고른 색상의 가격입니다. 소재에 따라 달라집니다.</p>
           )}
           {/*
             가격 아래 각주는 **배송비 하나**다 (2026-08-28 운영자 요청).
@@ -128,17 +140,17 @@ export default async function ProductPage({ params, searchParams }: PageProps<'/
 
           <div className="mt-10">
             <Disclosure title="배송 정보">
-              캘거리에서 주 3회 출고해요. 출고 후 한국 자택까지 영업일 기준 7~14일 걸려요.
-              국제 배송비는 무게와 부피에 따라 결제 단계에서 계산돼요.
+              캘거리에서 주 3회 출고합니다. 출고 후 한국 자택까지 영업일 기준 7~14일 걸립니다.
+              국제 배송비는 무게와 부피에 따라 결제 단계에서 계산됩니다.
             </Disclosure>
             <Disclosure title="관세·부가세">
-              미화 150달러 이하는 관세와 부가세가 면제돼요. 넘으면 상품가와 국제 운임을 합한 금액
-              전체에 부과되고, 통관할 때 받는 분이 납부해요. 판매가에는 포함되어 있지 않아요.
-              {ckfta && ' 이 상품은 캐나다산이라 관세는 면제되고 부가세만 붙어요.'}
+              미화 150달러 이하는 관세와 부가세가 면제됩니다. 넘으면 상품가와 국제 운임을 합한 금액
+              전체에 부과되고, 통관할 때 받는 분이 납부합니다. 판매가에는 포함되어 있지 않습니다.
+              {ckfta && ' 이 상품은 캐나다산이라 관세는 면제되고 부가세만 붙습니다.'}
             </Disclosure>
             <Disclosure title="교환 및 반품">
-              해외 배송이어도 교환과 반품이 가능해요. 국제 배송 중 발생한 파손·분실에 대한 1차
-              책임은 RICKY가 집니다. 조건과 절차는 교환·반품 정책에서 확인해 주세요.
+              해외 배송이어도 교환과 반품이 가능합니다. 국제 배송 중 발생한 파손·분실에 대한 1차
+              책임은 RICKY가 집니다. 조건과 절차는 교환·반품 정책에서 확인해 주십시오.
             </Disclosure>
           </div>
         </div>
@@ -150,15 +162,21 @@ export default async function ProductPage({ params, searchParams }: PageProps<'/
         <div className="max-w-[var(--measure-prose)] text-body leading-relaxed text-ink">
           {/* TODO(content): 상품 설명은 아직 없다. 지어내지 않고 사실만 둔다. */}
           <p>
-            캘거리 현지 공식 매장에서 직접 매입한 {product.brand} {product.name}이에요.
-            {product.variants.length > 1 && ` 색상은 ${product.variants.map((v) => v.colorKo).join(', ')} 중에 고를 수 있어요.`}
+            캘거리 현지 공식 매장에서 직접 매입한 {product.brand} {product.name}입니다.
+            {product.variants.length > 1 && ` 색상은 ${product.variants.map((v) => v.colorKo).join(', ')} 중에 고를 수 있습니다.`}
           </p>
           <p className="mt-4">
             출고 전에 실물 택과 시리얼, 사이즈 라벨, 봉제를 촬영해서 남기고, 매입 영수증과
-            인보이스를 상자에 함께 넣어요.
+            인보이스를 상자에 함께 넣습니다.
           </p>
         </div>
       </section>
+
+      {/* 공식몰 상품 상세 — 상품 단위 (아크테릭스) */}
+      <ProductDetails product={product} />
+
+      {/* 상품 사양 — 선택한 색상 기준 (코치). 법정 고시 표보다 위에 둔다 */}
+      <ProductSpecs variant={variant} />
 
       <ProductDisclosureTable product={product} />
 
@@ -178,12 +196,12 @@ export default async function ProductPage({ params, searchParams }: PageProps<'/
       {/* 후기는 구매 확인된 것만 존재한다. 없으면 섹션을 통째로 비운다 (docs/PDP-TEMPLATE.md §5) */}
       <section className="mt-20 border-t border-outline pt-8">
         <h2 className="text-editorial font-bold">후기</h2>
-        <p className="mt-3 text-body text-muted-text">아직 등록된 후기가 없어요.</p>
+        <p className="mt-3 text-body text-muted-text">아직 등록된 후기가 없습니다.</p>
       </section>
 
       <p className="mt-16 max-w-[var(--measure-prose)] text-meta leading-relaxed text-muted-text">
-        RICKY는 캐나다 현지 공식 매장에서 상품을 직접 매입해 판매하는 독립 사업자예요.
-        각 브랜드의 공식 수입사·총판·대리점이 아니며, 브랜드와 직접적인 제휴 관계는 없어요.
+        RICKY는 캐나다 현지 공식 매장에서 상품을 직접 매입해 판매하는 독립 사업자입니다.
+        각 브랜드의 공식 수입사·총판·대리점이 아니며, 브랜드와 직접적인 제휴 관계는 없습니다.
       </p>
     </Container>
   );

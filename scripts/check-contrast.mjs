@@ -27,6 +27,9 @@ const CHECKS = [
   // 텍스트는 불투명도 70% 이상 구간에만 놓기로 규정돼 있다 (DESIGN.md §4 Bento Scrim).
   ['스크림 70% 위 흰 글자 (최악)',  WHITE,        over(BLACK, 0.70, WHITE), 4.5, '벤토 타일 브랜드명·설명·CTA'],
   ['스크림 85% 위 흰 글자',        WHITE,        over(BLACK, 0.85, WHITE), 4.5, '벤토 타일 하단'],
+  // 홈 영상 히어로의 딤. 영상은 프레임마다 밝기가 변하므로 순백 프레임을 최악으로 잡는다.
+  // 60%가 하한이다 — 낮추면 이 줄이 먼저 깨진다 (.omd/preferences.md #18).
+  ['영상 딤 60% 위 흰 글자 (최악)', WHITE,        over(BLACK, 0.60, WHITE), 4.5, '홈 히어로 헤드라인·본문·on-image CTA'],
 ];
 
 // 정보를 싣지 않는 토큰 — AA 대상이 아니다. 용도가 새면 위 목록으로 옮겨야 한다.
@@ -37,14 +40,27 @@ const NON_TEXT = [
 ];
 
 /**
- * 네이버페이 버튼. 색·표기·비율이 네이버가 정한 자산이라 우리 팔레트로 다시 칠할 수 없다.
- * 흰 글자 대비가 낮으므로 **이 버튼에 안내 문구를 얹지 않는다** —
- * 설명은 버튼 밖 `#5d5d5d` 각주로 둔다 (src/components/store/naver-pay-button.tsx).
+ * 네이버페이 버튼과 소셜 로그인 버튼. 색·표기·비율이 각 사가 정한 자산이라
+ * 우리 팔레트로 다시 칠할 수 없다.
+ *
+ * 네이버 초록 위 흰 글자는 2.25:1 이다. 그래서 규칙이 하나 붙는다 —
+ * **이 버튼들 위에 안내 문구를 얹지 않는다.** 라벨 한 줄까지가 한계이고,
+ * 설명은 버튼 밖 `#5d5d5d` 각주로 둔다
+ * (src/components/store/naver-pay-button.tsx, src/app/login/login-form.tsx).
  */
 const NAVER_GREEN = [3, 199, 90];
+const KAKAO_YELLOW = [254, 229, 0];
+const GOOGLE_INK = [31, 31, 31];
+const GOOGLE_OUTLINE = [116, 119, 117];
 const BRAND_LOCKED = [
   ['네이버페이 흰 글자 / #03C75A', WHITE, NAVER_GREEN, '버튼 라벨. 문장을 얹지 말 것'],
   ['네이버페이 검정 대비 참고',     BLACK, NAVER_GREEN, '참고값 — 네이버 규정상 검정 라벨은 쓰지 않는다'],
+  ['네이버 로그인 흰 글자',         WHITE, NAVER_GREEN, '로그인 버튼 라벨. 같은 자산, 같은 제약'],
+  ['카카오 로그인 검정 글자',       BLACK, KAKAO_YELLOW, '카카오 규정: #FEE500 위 검정 라벨(85%)'],
+  ['카카오 문의 말풍선 마크',        BLACK, KAKAO_YELLOW, '우하단 플로팅 — 이 컨트롤을 식별하는 것이 이 마크다'],
+  ['카카오 문의 노란 원반 / 흰 지면', KAKAO_YELLOW, WHITE, '경계는 흐리다. 그래서 마크를 지우거나 흰색으로 바꾸지 말 것'],
+  ['구글 로그인 라벨 #1F1F1F',      GOOGLE_INK, WHITE, '구글 라이트 테마 라벨'],
+  ['구글 로그인 보더 #747775',      GOOGLE_OUTLINE, WHITE, '구글이 지정한 보더 — 우리 #949494 로 바꾸지 말 것'],
 ];
 
 let failed = 0;

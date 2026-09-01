@@ -6,7 +6,7 @@
  * 새 수집 경로를 만들지 않는 것이 요점이다 — 파싱 로직이 두 벌이 되면 반드시 갈라진다.
  */
 import { getAdapter } from '../adapters/index.ts';
-import { BRANDS } from '../config/brands.ts';
+import { BRANDS, belongsToSite } from '../config/brands.ts';
 import { log } from '../core/logger.ts';
 import type { BrandKey } from '../core/types.ts';
 import { byNewest } from '../extract/sitemap.ts';
@@ -127,10 +127,19 @@ async function resolveUrls(
   brand: BrandKey,
   opts: CheckOptions,
 ): Promise<Array<{ url: string; lastModified: string | null }>> {
-  if (opts.watchUrls?.length) {
-    const origin = BRANDS[brand].ca.origin;
+  /*
+   * 목록이 **비어 있어도** 사이트맵 탐색으로 물러나지 않는다.
+   * "조회할 URL 이 없다"는 "아무거나 긁어 와라"가 아니다 — 그렇게 물러나면
+   * 카탈로그 URL 해석이 실패한 날 리포트가 등록하지도 않은 상품으로 채워진다.
+   */
+  if (opts.watchUrls) {
+    /*
+     * 호스트로 가른다. 접두어(`startsWith(origin)`)로 가르면 한 브랜드가 호스트를
+     * 둘 이상 쓸 때 나머지가 통째로 빠진다 — 아크테릭스 아울렛이 그랬다.
+     */
+    const site = BRANDS[brand].ca;
     return opts.watchUrls
-      .filter((u) => u.startsWith(origin))
+      .filter((u) => belongsToSite(site, u))
       .map((url) => ({ url, lastModified: null }));
   }
 
@@ -146,6 +155,21 @@ export async function runStockCheck(opts: CheckOptions): Promise<ProductStock[]>
 
   for (const brand of opts.brands) {
     const cfg = BRANDS[brand];
+
+    /*
+     * 봇 방어가 앞문까지 막은 브랜드는 **네트워크로 시도조차 하지 않는다.**
+     *
+     * URL 을 안다고 되는 게 아니다 — 어차피 차단 페이지를 받는다. 그런데 북마클릿으로
+     * 한 번 수집하면 learnUrls 가 URL 을 학습하므로, 막지 않으면 그 뒤로 매 회차
+     * 헛되이 두드리게 된다. 정중하지도 않고(규칙 8) 리포트가 '수집 실패'로 채워져
+     * 진짜 실패가 묻힌다.
+     *
+     * 이 브랜드들의 재고는 북마클릿 캡처로만 들어온다.
+     */
+    if (cfg.ca.automation === 'bookmarklet') {
+      log.info(`${cfg.labelKo}: 자동 수집 불가 — 북마클릿 수집분만 쓴다`);
+      continue;
+    }
 
     // 감시 목록 모드에서는 해당 브랜드 URL 이 없으면 조용히 건너뛴다.
     // 목록에 없는 브랜드까지 "조회 대상 없음"을 찍으면 실제 실패가 묻힌다.

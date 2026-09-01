@@ -42,11 +42,12 @@ const ROWS: AdminProductRow[] = [
     featured_rank: 1,
     shipping_krw: 28000,
     ...FULL,
-    brands: { name: "Arc'teryx" },
+    official_url: 'https://arcteryx.com/ca/en/shop/mens/beta-jacket-0868',
+    brands: { name: "Arc'teryx", official_site_url: 'https://arcteryx.com' },
     product_variants: [
-      { price_krw: 712000, active: true },
-      { price_krw: 712000, active: true },
-      { price_krw: 712000, active: false },
+      { price_krw: 712000, active: true, smartstore_url: 'https://smartstore.naver.com/ricky/products/11' },
+      { price_krw: 712000, active: true, smartstore_url: 'https://smartstore.naver.com/ricky/products/12' },
+      { price_krw: 712000, active: false, smartstore_url: null },
     ],
   },
   {
@@ -59,8 +60,9 @@ const ROWS: AdminProductRow[] = [
     featured_rank: null,
     shipping_krw: null,
     ...EMPTY,
-    brands: { name: 'Coach' },
-    product_variants: [{ price_krw: 398000, active: true }],
+    official_url: 'https://www.coach.com/ca/products/brooklyn-shoulder-bag-28/CE587.html',
+    brands: { name: 'Coach', official_site_url: 'https://www.coach.com/ca' },
+    product_variants: [{ price_krw: 398000, active: true, smartstore_url: null }],
   },
   {
     id: '00000000-0000-4000-8000-000000000003',
@@ -72,10 +74,12 @@ const ROWS: AdminProductRow[] = [
     featured_rank: null,
     shipping_krw: 0,
     ...FULL,
-    brands: { name: 'lululemon' },
+    official_url: null,
+    brands: { name: 'lululemon', official_site_url: 'https://shop.lululemon.com' },
+    /* 섞인 상태 — 안 채운 색은 다른 색 페이지로 떨어진다. 경고 위계를 미리 본다. */
     product_variants: [
-      { price_krw: 148000, active: true },
-      { price_krw: 148000, active: true },
+      { price_krw: 148000, active: true, smartstore_url: 'https://smartstore.naver.com/ricky/products/31' },
+      { price_krw: 148000, active: true, smartstore_url: null },
     ],
   },
   {
@@ -89,8 +93,9 @@ const ROWS: AdminProductRow[] = [
     shipping_krw: 24000,
     ...FULL,
     smartstore_url: null,
-    brands: { name: "Arc'teryx" },
-    product_variants: [{ price_krw: 386000, active: true }],
+    official_url: 'https://arcteryx.com/ca/en/shop/womens/atom-hoody-9557',
+    brands: { name: "Arc'teryx", official_site_url: 'https://arcteryx.com' },
+    product_variants: [{ price_krw: 386000, active: true, smartstore_url: null }],
   },
   {
     id: '00000000-0000-4000-8000-000000000005',
@@ -102,8 +107,9 @@ const ROWS: AdminProductRow[] = [
     featured_rank: null,
     shipping_krw: 16000,
     ...FULL,
-    brands: { name: 'Coach' },
-    product_variants: [{ price_krw: 172000, active: true }],
+    official_url: null,
+    brands: { name: 'Coach', official_site_url: null },
+    product_variants: [{ price_krw: 172000, active: true, smartstore_url: null }],
   },
 ];
 
@@ -126,9 +132,18 @@ export default function AdminProductsPreview() {
               <h1 className="text-headline font-bold text-ink">상품</h1>
               <p className="mt-1 text-body text-muted-text">등록한 상품을 여기서 고치고 상태를 바꿔요.</p>
             </div>
-            <ButtonLink href="/admin/products/new" variant="inverted" size="md">
-              상품 등록
-            </ButtonLink>
+            <div className="flex flex-wrap items-center gap-3">
+              {/* 미리보기에서는 내려받아도 가짜 데이터가 아니라 진짜 DB 를 부른다 — 눌러 볼 것은 모양뿐이다 */}
+              <ButtonLink href="/admin/products/export" variant="ghost" size="md" prefetch={false}>
+                상품 엑셀
+              </ButtonLink>
+              <ButtonLink href="/admin/products/export?grain=variant" variant="ghost" size="md" prefetch={false}>
+                옵션 엑셀
+              </ButtonLink>
+              <ButtonLink href="/admin/products/new" variant="inverted" size="md">
+                상품 등록
+              </ButtonLink>
+            </div>
           </div>
 
           <div className="mt-8">

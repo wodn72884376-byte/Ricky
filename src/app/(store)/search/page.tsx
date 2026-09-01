@@ -4,7 +4,7 @@ import { EmptyResult } from '@/components/ui/states';
 import { searchProducts, toCardProps } from '@/lib/catalog';
 import { SearchForm } from './search-form';
 
-export const metadata = { title: '검색 — RICKY' };
+export const metadata = { title: '검색' };
 
 /**
  * 검색 결과 (docs/IA.md §1).
@@ -31,7 +31,7 @@ export default async function SearchPage({ searchParams }: PageProps<'/search'>)
           </p>
 
           {results.length === 0 ? (
-            <EmptyResult message="검색 결과가 없어요. 브랜드나 상품명으로 다시 찾아보세요." />
+            <EmptyResult message="검색 결과가 없습니다. 브랜드나 상품명으로 다시 찾아보십시오." />
           ) : (
             <div className="mt-8 grid grid-cols-2 gap-x-5 gap-y-12 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
               {results.map((product, i) => (

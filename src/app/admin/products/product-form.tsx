@@ -37,6 +37,7 @@ const CATEGORY_OPTIONS = [
 
 const GENDER_OPTIONS = [
   { value: 'unisex', label: '공용' },
+  { value: 'kids', label: '아동' },
   { value: 'men', label: '남성' },
   { value: 'women', label: '여성' },
 ];

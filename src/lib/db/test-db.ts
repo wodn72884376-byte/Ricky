@@ -16,7 +16,12 @@ const MIGRATIONS_DIR = fileURLToPath(new URL('../../../supabase/migrations/', im
 
 const SUPABASE_SHIM = `
   create schema if not exists auth;
-  create table if not exists auth.users (id uuid primary key default gen_random_uuid(), email text);
+  create table if not exists auth.users (
+    id uuid primary key default gen_random_uuid(),
+    email text,
+    -- 소셜 로그인이 넘겨주는 프로필. handle_new_user() 가 이걸 읽는다.
+    raw_user_meta_data jsonb not null default '{}'::jsonb
+  );
   create or replace function auth.uid() returns uuid language sql stable as $$
     select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
   $$;

@@ -27,14 +27,23 @@ export function hasVariantPricing(p: CatalogProduct): boolean {
   return new Set(p.variants.map((v) => v.priceKrw ?? p.priceKrw)).size > 1;
 }
 
-/** 배송비 산정용 무게. TODO(data): 실측값으로 교체 (생성 파일 주석 참조) */
+/**
+ * 공식몰 표기 무게가 없는 상품의 대체값. 카테고리 평균이라 어디까지나 추정이다.
+ * TODO(data): 남은 브랜드도 실측값으로 교체 (생성 파일 주석 참조)
+ */
 const FALLBACK_WEIGHT_G: Record<string, number> = {
   outerwear: 650, top: 420, bag: 900, accessory: 150, bottom: 350,
   wallet: 200, shoes: 900,
 };
 
+/**
+ * 배송비 산정용 무게.
+ *
+ * 공식몰이 밝힌 값이 있으면 그것을 쓴다 — 아크테릭스는 상품 상세에서 읽어 왔다.
+ * 추정값과 실제가 꽤 벌어진다(예: Squamish Hoody는 추정 420g, 실제 123g).
+ */
 export function weightGOf(p: CatalogProduct): number {
-  return FALLBACK_WEIGHT_G[p.category] ?? 500;
+  return p.weightG ?? FALLBACK_WEIGHT_G[p.category] ?? 500;
 }
 
 /**
@@ -96,15 +105,22 @@ export function byBrand(brandSlug: string) {
 }
 
 export function byGender(gender: Gender) {
-  return CATALOG.filter((p) => p.gender === gender || p.gender === 'unisex');
+  return filterGender(CATALOG, gender);
 }
 
-/** 성별 필터. `unisex`는 양쪽 목록에 모두 나온다 (마이그레이션 20260826000004 주석). */
+/**
+ * 성별 필터.
+ *
+ * `unisex` 는 **어른 목록 양쪽에** 나온다 (마이그레이션 20260826000004 주석).
+ * 아동 목록에는 나오지 않는다 — 성인 프리 사이즈 옷이 아동 목록에 섞이면 부모가
+ * 사이즈를 착각한다. 아동은 어른과 겹치는 축이 아니라 별개의 축이다 (20260830000014).
+ */
 export function filterGender<T extends { gender: CatalogProduct['gender'] }>(
   items: T[],
   gender: Gender | null,
 ): T[] {
   if (!gender) return items;
+  if (gender === 'kids') return items.filter((p) => p.gender === 'kids');
   return items.filter((p) => p.gender === gender || p.gender === 'unisex');
 }
 
@@ -236,7 +252,8 @@ export function resolveCartLines(stored: CartLine[]): CheckoutLine[] {
         originCountry: p.originCountry ?? '',
         weightG: weightGOf(p),
         shippingKrw: shippingKrwOf(p),
-        smartstoreUrl: p.smartstoreUrl,
+        // 색상 전용 주소가 있으면 그것이 이긴다 — 장바구니는 색상이 확정된 화면이다
+        smartstoreUrl: v.smartstoreUrl ?? p.smartstoreUrl,
         // TODO(stock): 공급처 신선도 게이트가 붙기 전까지는 항상 구매 가능으로 둔다 (§6.5)
         purchasable: true,
       },

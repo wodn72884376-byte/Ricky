@@ -16,7 +16,9 @@ const SUPABASE_SHIM = `
   create schema if not exists auth;
   create table if not exists auth.users (
     id uuid primary key default gen_random_uuid(),
-    email text
+    email text,
+    -- 소셜 로그인이 넘겨주는 프로필. handle_new_user() 가 이걸 읽는다.
+    raw_user_meta_data jsonb not null default '{}'::jsonb
   );
   create or replace function auth.uid() returns uuid language sql stable as $$
     select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
@@ -51,6 +53,28 @@ const { rows: tables } = await db.query(`
 `);
 const { rows: policies } = await db.query(`select count(*)::int as n from pg_policies where schemaname='public'`);
 const { rows: settings } = await db.query(`select key from settings order by key`);
+
+/*
+ * 스모크: 가입 트리거가 실제로 도는지 본다.
+ * plpgsql 본문은 생성 시점에 검사되지 않으므로, 함수가 만들어졌다는 것만으로는
+ * 컬럼 이름이 맞는지 알 수 없다 — 한 번 넣어 봐야 안다.
+ */
+await db.exec(`
+  insert into auth.users (id, email, raw_user_meta_data) values
+    ('11111111-1111-1111-1111-111111111111', 'a@example.com', '{"name":"구글 사용자"}'),
+    ('22222222-2222-2222-2222-222222222222', null,            '{"nickname":"네이버 사용자"}');
+`);
+const { rows: created } = await db.query(`select id, email, name from customers order by name`);
+if (created.length !== 2) {
+  console.error(`\nFAIL 가입 트리거: customers 행이 ${created.length}개 (2개여야 한다)`);
+  process.exit(1);
+}
+const noEmail = created.find((c) => c.email === null);
+if (!noEmail || noEmail.name !== '네이버 사용자') {
+  console.error('\nFAIL 가입 트리거: 이메일 없는 소셜 계정을 받지 못한다');
+  process.exit(1);
+}
+console.log(`\n가입 트리거: ${created.map((c) => `${c.name}(${c.email ?? '이메일 없음'})`).join(', ')}`);
 
 console.log(`\n테이블 ${tables.length}개: ${tables.map((t) => t.tablename).join(', ')}`);
 console.log(`RLS 정책 ${policies[0].n}개`);

@@ -57,7 +57,7 @@ const shared = {
     .trim()
     .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'URL 주소는 영소문자·숫자·하이픈만 쓸 수 있어요.'),
   category: z.enum(CATEGORIES),
-  gender: z.enum(['men', 'women', 'unisex']),
+  gender: z.enum(['men', 'women', 'unisex', 'kids']),
   stockType: z.enum(['preheld', 'on_demand']),
   description: z.string().trim().optional(),
 

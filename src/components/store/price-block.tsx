@@ -105,7 +105,7 @@ export function CustomsCaption({ customs }: { customs?: CustomsEstimate }) {
       관세·부가세 약{' '}
       <span data-numeric>{formatKrw(customs.totalTaxKrw)}</span> 예상 (통관 시 수취인 납부)
       {/* CKFTA는 관세만 0%이고 부가세 10%는 부과된다 — "완전 면세"로 읽히지 않게 명시 */}
-      {customs.ckftaApplied && ' · 캐나다산이라 관세는 면제되고 부가세만 붙어요'}
+      {customs.ckftaApplied && ' · 캐나다산이라 관세는 면제되고 부가세만 붙습니다'}
     </p>
   );
 }

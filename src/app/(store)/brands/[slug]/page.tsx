@@ -6,7 +6,7 @@ import { ProductCard } from '@/components/store/product-card';
 import { LinkedFilterBar } from '@/components/store/linked-filter-bar';
 import { EmptyResult, EmptyState } from '@/components/ui/states';
 import { ButtonLink } from '@/components/ui/button';
-import { BRAND_COLUMNS, type Gender } from '@/lib/nav';
+import { BRAND_COLUMNS, GENDER_LABEL, parseGender } from '@/lib/nav';
 import { byBrand, categoryTabs, filterGender, toCardProps } from '@/lib/catalog';
 import type { SortKey } from '@/components/store/product-filter-bar';
 
@@ -41,13 +41,13 @@ const HERO: Record<string, { image: string; alt: string }> = {
 
 /** 브랜드 한 줄 소개. 사진과 달리 모든 브랜드가 가진다. */
 const BLURB: Record<string, string> = {
-  arcteryx: '캐나다에서 시작한 고기능 아웃도어예요. 국내에 안 들어온 라인을 캘거리에서 직접 골라요.',
-  lululemon: '한국에 안 들어온 사이즈와 컬러웨이를 찾아요.',
-  coach: '가방과 지갑, 그리고 액세서리예요.',
-  polo: '북미 매장의 폴로 라인이에요. 한국에 없는 사이즈와 컬러웨이를 봐요.',
-  tommy: '북미 매장 기준의 기본 라인이에요. 사이즈 표기가 한국과 달라 실측을 함께 적어요.',
-  'canada-goose': '캐나다 브랜드의 겨울 아우터예요. 원산지는 상품마다 실물 라벨을 확인해 적어요.',
-  nobis: '토론토에서 시작한 아우터 브랜드예요.',
+  arcteryx: '캐나다에서 시작한 고기능 아웃도어입니다. 국내에 안 들어온 라인을 캘거리에서 직접 고릅니다.',
+  lululemon: '한국에 안 들어온 사이즈와 컬러웨이를 찾습니다.',
+  coach: '가방과 지갑, 그리고 액세서리입니다.',
+  polo: '북미 매장의 폴로 라인입니다. 한국에 없는 사이즈와 컬러웨이를 봅니다.',
+  tommy: '북미 매장 기준의 기본 라인입니다. 사이즈 표기가 한국과 달라 실측을 함께 적습니다.',
+  'canada-goose': '캐나다 브랜드의 겨울 아우터입니다. 원산지는 상품마다 실물 라벨을 확인해 적습니다.',
+  nobis: '토론토에서 시작한 아우터 브랜드입니다.',
 };
 
 export function generateStaticParams() {
@@ -57,7 +57,7 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps<'/brands/[slug]'>) {
   const { slug } = await params;
   const brand = BRAND_COLUMNS.find((b) => b.slug === slug);
-  return { title: brand ? `${brand.label} — RICKY` : 'RICKY' };
+  return { title: brand ? brand.label : '없는 브랜드입니다' };
 }
 
 function sortProducts<T extends { priceKrw: number; compareAtKrw?: number; arrivedAt: string }>(
@@ -88,7 +88,7 @@ export default async function BrandPage({ params, searchParams }: PageProps<'/br
   const category = typeof sp.category === 'string' ? sp.category : null;
   const sort = (typeof sp.sort === 'string' ? sp.sort : 'recommended') as SortKey;
   // 메가 메뉴가 `?gender=`를 달고 들어온다. unisex는 양쪽에 모두 나온다.
-  const gender: Gender | null = sp.gender === 'men' || sp.gender === 'women' ? sp.gender : null;
+  const gender = parseGender(sp.gender);
 
   const hero = HERO[slug];
   const blurb = BLURB[slug];
@@ -114,7 +114,7 @@ export default async function BrandPage({ params, searchParams }: PageProps<'/br
             <h1 className="text-headline font-bold">{brand.label}</h1>
             {gender && (
               <p className="mt-1 text-meta text-muted-text">
-                {gender === 'men' ? "Men's" : "Women's"}
+                {GENDER_LABEL[gender]}
               </p>
             )}
             {blurb && <p className="mt-2 max-w-[var(--measure-prose)] text-body text-ink">{blurb}</p>}
@@ -137,8 +137,8 @@ export default async function BrandPage({ params, searchParams }: PageProps<'/br
                `Nobis은`이 되지 않도록 항상 `상품은`을 사이에 둔다 */
             message={
               gender
-                ? `${brand.label} ${gender === 'men' ? "Men's" : "Women's"} 상품은 아직 준비하고 있어요.`
-                : `${brand.label} 상품은 아직 준비하고 있어요. 매입이 시작되면 여기에 올라와요.`
+                ? `${brand.label} ${GENDER_LABEL[gender]} 상품은 아직 준비하고 있습니다.`
+                : `${brand.label} 상품은 아직 준비하고 있습니다. 매입이 시작되면 여기에 올라옵니다.`
             }
             action={
               <ButtonLink href="/brands/arcteryx" chevron>
@@ -155,7 +155,7 @@ export default async function BrandPage({ params, searchParams }: PageProps<'/br
 
             {visible.length === 0 ? (
               <div className="flex flex-col items-start gap-6">
-                <EmptyResult message="이 조건에 맞는 상품이 없어요." />
+                <EmptyResult message="이 조건에 맞는 상품이 없습니다." />
                 <ButtonLink href={`/brands/${slug}`} chevron>
                   전체 보기
                 </ButtonLink>

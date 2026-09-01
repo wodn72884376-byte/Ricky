@@ -6,7 +6,28 @@
  * 내비게이션은 "어떻게 찾는가"를 맡는다 (docs/IA.md §2).
  */
 
-export type Gender = 'men' | 'women';
+/**
+ * 쇼핑 축. `unisex` 는 여기 없다 — 그건 상품의 속성이지 고객이 고르는 축이 아니다.
+ * `kids` 는 어른 축과 겹치지 않는다: unisex 상품이 아동 목록에 나오지 않는다 (`filterGender`).
+ */
+export type Gender = 'men' | 'women' | 'kids';
+
+/** 화면에 쓰는 표기. 잡지 목차 레지스터라 라틴이다 (DESIGN.md §3). */
+export const GENDER_LABEL: Record<Gender, string> = {
+  men: "Men's",
+  women: "Women's",
+  kids: 'Kids',
+};
+
+/**
+ * URL 검색 파라미터 → 쇼핑 축. 모르는 값은 null(= 전체)이다.
+ *
+ * 목록 페이지 셋이 각자 파싱하다가 값이 셋으로 늘었다. 한 곳에서 하지 않으면
+ * `?gender=kids` 를 아는 페이지와 모르는 페이지가 갈린다.
+ */
+export function parseGender(value: unknown): Gender | null {
+  return value === 'men' || value === 'women' || value === 'kids' ? value : null;
+}
 
 /** 카테고리는 브랜드마다 다르다. 코치에 `아우터`를, 아크테릭스에 `지갑`을 두지 않는다. */
 export type CategoryEntry = { label: string; value: string | null };
@@ -53,9 +74,9 @@ export const BRAND_COLUMNS: BrandColumn[] = [
   { slug: 'arcteryx', label: "Arc'teryx", categories: APPAREL },
   { slug: 'lululemon', label: 'lululemon', categories: APPAREL },
   { slug: 'coach', label: 'Coach', categories: LEATHER_GOODS },
-  { slug: 'polo', label: 'Polo Ralph Lauren', short: 'Polo', categories: APPAREL, comingSoon: true },
+  { slug: 'polo', label: 'Polo Ralph Lauren', short: 'Polo', categories: APPAREL },
   { slug: 'tommy', label: 'Tommy Hilfiger', short: 'Tommy', categories: APPAREL, comingSoon: true },
-  { slug: 'canada-goose', label: 'Canada Goose', categories: OUTERWEAR_LED, comingSoon: true },
+  { slug: 'canada-goose', label: 'Canada Goose', categories: OUTERWEAR_LED },
   { slug: 'nobis', label: 'Nobis', categories: OUTERWEAR_LED, comingSoon: true },
 ];
 
@@ -77,4 +98,5 @@ export const PRIMARY_NAV = [
   { key: 'best', label: 'BEST', href: '/best', hasMenu: false },
   { key: 'men', label: "Men's", href: '/shop?gender=men', hasMenu: true, gender: 'men' as const },
   { key: 'women', label: "Women's", href: '/shop?gender=women', hasMenu: true, gender: 'women' as const },
+  { key: 'kids', label: 'Kids', href: '/shop?gender=kids', hasMenu: true, gender: 'kids' as const },
 ] as const;

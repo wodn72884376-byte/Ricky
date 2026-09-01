@@ -14,18 +14,18 @@ import './globals.css';
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl()),
   title: {
-    default: 'RICKY — 캘거리에서 직접 사서 보내요',
+    default: 'RICKY — 캘거리에서 직접 사서 보냅니다',
     template: '%s — RICKY',
   },
   description:
-    '캐나다 알버타주 캘거리의 공식 매장에서 아크테릭스·룰루레몬·코치를 직접 매입해 한국으로 보내요. 검수 사진과 매입 영수증을 함께 드려요.',
+    '캐나다 알버타주 캘거리의 공식 매장에서 아크테릭스·룰루레몬·코치를 직접 매입해 한국으로 보냅니다. 검수 사진과 매입 영수증을 함께 드립니다.',
   applicationName: 'RICKY',
   openGraph: {
     type: 'website',
     siteName: 'RICKY',
     locale: 'ko_KR',
-    title: 'RICKY — 캘거리에서 직접 사서 보내요',
-    description: '한국에 없는 것을, 캘거리에서 직접 사서 보내요.',
+    title: 'RICKY — 캘거리에서 직접 사서 보냅니다',
+    description: '한국에 없는 것을, 캘거리에서 직접 사서 보냅니다.',
     url: '/',
   },
   twitter: { card: 'summary_large_image' },

@@ -9,14 +9,31 @@ import { ChevronRight } from '@/components/ui/icons';
  * 레퍼런스의 **분할 화면**을 가져왔다 — 왼쪽 전면 사진, 오른쪽 폼. 이 브랜드는 사진이
  * 무게를 지므로 인증 화면에서도 사진을 버리지 않는다.
  *
- * 가져오지 않은 것: 그라디언트 배경, 12px 반경, 파란 링크, 소셜 로그인 버튼.
- * 소셜 로그인은 Supabase provider 설정이 선행돼야 한다 — 눌러도 안 되는 버튼을 두지 않는다.
+ * 가져오지 않은 것: 그라디언트 배경, 12px 반경, 파란 링크.
  *
- * 비밀번호가 없으므로 `비밀번호 찾기`·`로그인 유지`도 없다.
- * 로그인과 회원가입은 **같은 동작**이다. `mode=signup`은 문구만 바꾼다.
+ * 인증은 소셜 셋(구글·네이버·카카오)뿐이다. 비밀번호가 없으므로 `비밀번호 찾기`도,
+ * `로그인 유지`도 없다. 로그인과 회원가입은 **같은 동작**이다 — `mode=signup`은 문구만 바꾼다.
+ *
+ * `next` 는 로그인 뒤 돌아갈 곳이다. 결제·문의처럼 로그인이 필요한 화면이 여기로 보낼 때
+ * 붙여 준다. 오픈 리다이렉트를 막기 위해 같은 오리진의 경로만 통과시킨다.
  */
+/**
+ * 콜백이 붙여 보내는 실패 사유. 취소와 장애를 구분한다 —
+ * 사용자가 스스로 취소한 것을 "오류"라고 부르면 뭘 잘못했나 찾게 된다.
+ */
+const ERROR_KO: Record<string, string> = {
+  cancelled: '로그인을 취소하셨습니다. 다시 시도하시려면 위에서 계정을 눌러 주십시오.',
+  provider: '로그인 제공자 쪽에서 문제가 생겼습니다. 잠시 후 다시 시도해 주십시오.',
+  missing_code: '로그인이 완료되지 않았습니다. 처음부터 다시 시도해 주십시오.',
+  exchange_failed: '로그인 정보를 확인하지 못했습니다. 잠시 후 다시 시도해 주십시오.',
+};
+
 export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
-  const signup = (await searchParams).mode === 'signup';
+  const params = await searchParams;
+  const signup = params.mode === 'signup';
+  const raw = typeof params.next === 'string' ? params.next : '/';
+  const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/';
+  const failure = typeof params.error === 'string' ? ERROR_KO[params.error] ?? ERROR_KO.provider : null;
 
   return (
     <div className="flex min-h-dvh flex-col lg:flex-row">
@@ -46,16 +63,22 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
           <h1 className="mt-8 text-headline font-bold">{signup ? '회원가입' : '로그인'}</h1>
           <p className="mt-3 text-body text-muted-text">
             {signup
-              ? '이메일만 있으면 돼요. 비밀번호는 만들지 않아요.'
-              : '비밀번호 없이 이메일로 로그인 링크를 보내드려요.'}
+              ? '쓰던 계정으로 시작합니다. 비밀번호는 만들지 않습니다.'
+              : '가입할 때 쓰신 계정을 눌러 주십시오.'}
           </p>
 
-          <LoginForm signup={signup} />
+          <LoginForm next={next} />
+
+          {failure && (
+            <p role="alert" className="mt-5 text-body text-error">
+              {failure}
+            </p>
+          )}
 
           <hr className="my-10 border-outline" />
 
           <p className="text-body text-muted-text">
-            {signup ? '이미 계정이 있으세요? ' : '아직 계정이 없으세요? '}
+            {signup ? '이미 계정이 있으신가요? ' : '아직 계정이 없으신가요? '}
             <Link
               href={signup ? '/login' : '/login?mode=signup'}
               className="font-bold text-ink underline underline-offset-4"
@@ -63,11 +86,11 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
               {signup ? '로그인' : '회원가입'}
             </Link>
           </p>
-          {/* 매직링크는 계정 유무를 구분하지 않는다. 그 사실을 숨기지 않는다. */}
+          {/* 소셜 로그인은 가입과 로그인이 같은 동작이다. 그 사실을 숨기지 않는다. */}
           <p className="mt-3 text-meta text-muted-text">
             {signup
-              ? '이미 가입한 이메일이면 그대로 로그인돼요.'
-              : '처음 보는 이메일이면 계정이 함께 만들어져요.'}
+              ? '이미 가입한 계정이면 그대로 로그인됩니다.'
+              : '처음 쓰는 계정이면 회원가입이 함께 됩니다.'}
           </p>
 
           <p className="mt-10 text-meta text-muted-text">
@@ -79,7 +102,7 @@ export default async function LoginPage({ searchParams }: PageProps<'/login'>) {
             <Link href="/policy/privacy" className="text-ink underline underline-offset-4">
               개인정보처리방침
             </Link>
-            에 동의하는 것으로 봐요.
+            에 동의하는 것으로 봅니다.
           </p>
         </div>
       </div>

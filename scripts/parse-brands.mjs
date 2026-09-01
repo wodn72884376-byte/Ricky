@@ -66,6 +66,32 @@ function priceCadOf(text) {
   return all.length ? Number(all[all.length - 1][1]) : null;
 }
 
+/**
+ * `ORIGIN\nMade in Canada` → 'CA'.
+ *
+ * **실물 라벨 기준으로만 읽는다** (CLAUDE.md 규칙 5). 브랜드가 캐나다 회사라는 이유로
+ * CA를 넣지 않는다 — 캐나다구스도 상당수 품목을 해외에서 만든다.
+ * 문서에 적힌 문장이 없으면 null이고, 그러면 CKFTA를 적용하지 않는다.
+ */
+function originOf(text) {
+  if (!text) return null;
+  const m = text.match(/^ORIGIN\s*\n\s*Made in ([A-Za-z ]+)/im);
+  if (!m) return null;
+  const country = m[1].trim().toLowerCase();
+  // 아는 것만 코드로 바꾼다. 모르면 null로 두고 사람이 채운다.
+  return { canada: 'CA', italy: 'IT', vietnam: 'VN', china: 'CN', 'sri lanka': 'LK' }[country] ?? null;
+}
+
+/** 캐나다구스 `Style:\n1741M`. 값이 빈 줄인 상품이 있어 null을 돌려줄 수 있다. */
+function cgStyleOf(text) {
+  if (!text) return null;
+  // `\s`는 줄바꿈도 먹으므로 빈 줄을 건너뛰어 엉뚱한 값을 집는다 —
+  // Garson Vest는 `Style:` 다음이 빈 줄이라 그 아래 `650CAD`를 스타일로 읽었다.
+  // 바로 다음 줄만 본다.
+  const m = text.match(/^Style:[^\S\n]*\n[^\S\n]*([A-Za-z0-9-]+)[^\S\n]*$/im);
+  return m ? m[1] : null;
+}
+
 /** `Style Number\nCV934` / `Style Number: 650001` 둘 다 받는다 */
 function styleNoOf(text) {
   if (!text) return null;
@@ -83,6 +109,15 @@ const trailingNum = (f) => {
 function sortCoach(files) {
   // cv934_imblk_a0 · a3 · a8 · a10 … a0이 정면 컷이다
   return [...files].sort((a, b) => trailingNum(a) - trailingNum(b));
+}
+
+/**
+ * 캐나다구스는 `2052M_61.avif`(대표) + `2052M_61_a.avif`(부가) 형태다.
+ * 접미사 없는 것이 정면 컷이므로 맨 앞에 두고 나머지는 접미사 순으로 고정한다.
+ */
+function sortCanadaGoose(files) {
+  const suffix = (f) => f.replace(/\.[a-z]+$/i, '').match(/_([a-z])$/i)?.[1]?.toLowerCase() ?? '';
+  return [...files].sort((a, b) => suffix(a).localeCompare(suffix(b)) || a.localeCompare(b));
 }
 
 function sortPolo(files) {
@@ -207,7 +242,11 @@ export async function parsePolo() {
         if (files.length === 0) continue;
         const fixed = fixFolder(folder);
         colors.push({
-          key: folder,
+          // 바로잡은 이름으로 SKU·이미지 파일명을 만든다. 원본 폴더명을 쓰면 오타가
+          // SKU 에 그대로 굳는다 — 실측: `Collection Camel Melang` 폴더 탓에 SKU 가
+          // `…-COLLECTION-CAMEL-MELANG` 이 되어 수집한 `Collection Camel Melange` 와
+          // 대조되지 않았다. SKU 는 Supabase 조인 키라 틀리면 재고가 안 붙는다.
+          key: fixed,
           color: fixed.replace(/,/g, ' / '),
           label: fixed.replace(/,/g, ' / '),
           material: null,
@@ -296,7 +335,8 @@ export async function parseLululemon() {
       // `Sweet Sorbet,Pink Pearl` 처럼 두 색이 콤마로 붙어 온다
       const color = fixFolder(folder).split(',').map((s) => s.trim()).filter(Boolean).join(' / ');
       colors.push({
-        key: folder,
+        // 폴로와 같은 이유 — 바로잡은 이름으로 SKU 를 만든다
+        key: fixFolder(folder),
         color,
         label: color,
         material: null,
@@ -324,10 +364,221 @@ export async function parseLululemon() {
   return out;
 }
 
+// ── 캐나다구스 ────────────────────────────────────────────────────
+
+/**
+ * 다운 아우터 브랜드다. 파카·베스트·후디 전부 아우터로 둔다 —
+ * `Lodge Hoodie`는 이름만 후디이고 다운이 들어간 겉옷이다.
+ */
+function canadaGooseCategory(name) {
+  if (/Parka|Vest|Jacket|Coat|Bomber|Hoodie|Shell/i.test(name)) return 'outerwear';
+  return 'outerwear';
+}
+
+/**
+ * 사이즈는 details.txt에 없다. 캐나다구스 남성 아우터의 표준 전개를 쓴다.
+ * **확인이 필요한 값이다** — 상품마다 XXL이 없을 수 있다.
+ */
+const CANADA_GOOSE_SIZES = {
+  men: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
+  women: ['XS', 'S', 'M', 'L', 'XL'],
+};
+
+/**
+ * 최상위 폴더 → 성별과 사이즈 전개.
+ *
+ * 아동은 **두 라인의 사이즈 척도가 다르다.** 공식 사이즈 표를 그대로 옮긴 값이다:
+ *   2~7years  나이 구간 자체가 사이즈다
+ *   6+years   문자 사이즈에 나이를 괄호로 병기한다
+ * 겹치는 6~7세 때문에 Vanier Vest 가 양쪽에 다 있고, 스타일 코드로 갈린다(4554K / 4554Y).
+ *
+ * `gender` 는 셋 다 'kids' 다 — 나이대는 성별이 아니라 사이즈의 문제다 (20260830000014).
+ */
+const CANADA_GOOSE_LINES = {
+  '남성': { gender: 'men', sizes: CANADA_GOOSE_SIZES.men },
+  '여성': { gender: 'women', sizes: CANADA_GOOSE_SIZES.women },
+  'KIDS(2~7years)': { gender: 'kids', sizes: ['2-3', '4-5', '6-7'] },
+  'KIDS(6+years)': {
+    gender: 'kids',
+    sizes: ['XS (6)', 'S (7-8)', 'M (10-12)', 'L (14-16)', 'XL (18)'],
+  },
+};
+
+/** 상품명 끝의 디스크 표기. 색상 속성이지 상품 이름이 아니다. */
+const stripDisc = (name) => name.replace(/\s+(Black|Classic|Tonal)?\s*Dis[ck]$/i, '').trim();
+
+/**
+ * 디스크 폴더명을 공식 표기로 모은다.
+ *
+ * 원본 폴더가 제각각이다 — `Disk Classic` · `Disk black` · `Classic Disk` · `Black Disk`.
+ * 캐나다구스 공식 표기는 **형용사 + Disc**(`Black Disc`)이고 details.txt의 `DISC` 섹션도
+ * 같은 형용사를 쓴다. 어순·대소문자·철자(Disk→Disc)를 여기서 한 번에 맞춘다.
+ *
+ * 없는 색을 만드는 것이 아니라 이미 있는 이름을 바로 읽는 것이다 (FOLDER_FIX와 같은 취지).
+ * 아는 형태가 아니면 null을 돌려주고 폴더명을 그대로 쓴다 — 지어내지 않는다.
+ */
+function normalizeDisc(folder) {
+  const m = folder.trim().match(/^(?:dis[ck]\s+)?(classic|black|tonal)(?:\s+dis[ck])?$/i);
+  if (!m) return null;
+  const word = m[1].toLowerCase();
+  return `${word[0].toUpperCase()}${word.slice(1)} Disc`;
+}
+
+/**
+ * 이미지 파일명 `2081MB_433_a.avif` 앞자리가 스타일 코드다.
+ *
+ * **details.txt보다 이 값을 우선한다.** details.txt는 디스크 폴더마다 놓여 있지 않아
+ * 없으면 상품 레벨을 물려받는데, 그러면 디스크가 달라도 코드가 같아진다 —
+ * 실측 13건(Lodge Hoodie·MacMillan Parka)이 그랬다. 이미지 파일은 색상 폴더 안에
+ * 실제로 놓인 자산이라 물려받을 여지가 없다.
+ * 나머지 폴더에서는 두 값이 일치하는 것을 확인했다.
+ */
+const styleFromImage = (file) => file.match(/^([0-9]+[A-Z]*)_/)?.[1] ?? null;
+
+/**
+ * 캐나다구스는 폴더 깊이가 두 가지다.
+ *
+ *   2단계  Murray Parka/{색상}/                    — 디스크가 하나뿐인 상품
+ *   3단계  Langford Parka/{디스크}/{색상}/          — 디스크마다 스타일 코드가 다르다
+ *
+ * 디스크(로고 배지 마감)는 **색상 속성으로 접는다.** 상품을 셋으로 쪼개면 같은 파카의
+ * PDP가 세 개가 되고, 가격도 전부 같다. 코치에서 하드웨어(Brass/Gold)를 색상 라벨에
+ * 접어 넣은 것과 같은 처리다.
+ *
+ * `details.txt`도 상품 레벨과 색상 레벨 양쪽에 있다 — 가까운 쪽을 우선한다.
+ */
+export async function parseCanadaGoose() {
+  const src = join(ROOT, '캐나다구스');
+  const out = [];
+
+  for (const genderDir of await dirs(src)) {
+    const line = CANADA_GOOSE_LINES[genderDir];
+    /*
+      모르는 폴더는 **경고하고** 넘어간다. 조용히 continue 하면 새 라인을 통째로 놓친다 —
+      실제로 KIDS 두 폴더가 그렇게 몇 번의 임포트를 지나갔다.
+    */
+    if (!line) {
+      parseWarnings.push(`캐나다구스: 최상위 폴더 "${genderDir}" 를 모른다 — 통째로 건너뜀`);
+      continue;
+    }
+    const { gender, sizes } = line;
+
+    for (const folder of await dirs(join(src, genderDir))) {
+      const productDir = join(src, genderDir, folder);
+      const productDetails = await readText(join(productDir, 'details.txt'));
+      const colors = [];
+      const styleConflicts = [];
+
+      for (const midName of await dirs(productDir)) {
+        const midDir = join(productDir, midName);
+        const midDetails = (await readText(join(midDir, 'details.txt'))) ?? productDetails;
+        const midFiles = (await readdir(midDir)).filter(isImage);
+
+        // 2단계 — 여기가 색상 폴더다
+        if (midFiles.length > 0) {
+          colors.push(makeColor(midName, midDir, midFiles, midDetails, styleConflicts));
+          continue;
+        }
+
+        // 3단계 — 여기는 디스크 폴더이고 그 아래가 색상이다
+        const disc = normalizeDisc(midName) ?? midName;
+        for (const colorName of await dirs(midDir)) {
+          const colorDir = join(midDir, colorName);
+          const files = (await readdir(colorDir)).filter(isImage);
+          if (files.length === 0) continue;
+          const details = (await readText(join(colorDir, 'details.txt'))) ?? midDetails;
+          const c = makeColor(colorName, colorDir, files, details, styleConflicts);
+          c.disc = disc;
+          colors.push(c);
+        }
+      }
+
+      /*
+        디스크는 **두 가지 이상일 때만** 색상명에 붙인다.
+        하나뿐인데 붙이면 고를 수 없는 것을 선택지처럼 보이게 한다 —
+        Murray·Garson·Crofton은 디스크가 하나라 색상만 남는다.
+      */
+      const discs = new Set(colors.map((c) => c.disc).filter(Boolean));
+      if (discs.size > 1) {
+        for (const c of colors) {
+          const label = `${c.disc} / ${c.color}`;
+          c.key = `${c.disc},${c.color}`;
+          c.color = label;
+          c.label = label;
+        }
+      }
+
+      if (colors.length === 0) {
+        parseWarnings.push(`캐나다구스 ${genderDir}/${folder}: 이미지가 있는 색상 폴더가 없어 건너뜀`);
+        continue;
+      }
+
+      const name = stripDisc(folder);
+      if (styleConflicts.length > 0) {
+        // 고쳐서 쓰지만 원본이 어긋나 있다는 사실은 알린다. details.txt를 손보면 사라진다.
+        parseWarnings.push(
+          `캐나다구스 ${name}: details.txt의 스타일 코드가 이미지와 달라 ${styleConflicts.length}개 색상에서 ` +
+            `이미지를 따랐다 — ${styleConflicts[0]}`,
+        );
+      }
+      const noStyle = colors.filter((c) => !c.styleNo).map((c) => c.label);
+      if (noStyle.length > 0) {
+        parseWarnings.push(
+          `캐나다구스 ${name}: 스타일 코드가 없는 색상 ${noStyle.length}개 (${noStyle[0]}…) — ` +
+            '상품코드가 없으면 캐나다 공식몰 재고 조회 대상에서 빠진다',
+        );
+      }
+
+      out.push({
+        brand: 'Canada Goose',
+        brandSlug: 'canada-goose',
+        name,
+        gender,
+        category: canadaGooseCategory(name),
+        sizes,
+        detailsText: productDetails ?? colors[0]?.detailsText ?? null,
+        // 원산지는 색상마다 같다 — 상품 레벨로 올린다. 없으면 null이고 CKFTA를 적용하지 않는다.
+        originCountry: colors.find((c) => c.originCountry)?.originCountry ?? null,
+        colors,
+      });
+    }
+  }
+  return out;
+
+  /** `conflicts`는 호출한 상품 루프의 배열이다 — 이 함수는 상품 바깥에 있어 직접 볼 수 없다. */
+  function makeColor(folderName, dir, files, details, conflicts) {
+    const fixed = fixFolder(folderName);
+    const sorted = sortCanadaGoose(files);
+    const fromImage = styleFromImage(sorted[0] ?? '');
+    const fromDetails = cgStyleOf(details);
+
+    // 두 값이 어긋나면 이미지를 쓰되 어긋났다는 사실은 남긴다 — 원본이 부정확하다는 신호다.
+    if (fromImage && fromDetails && fromImage !== fromDetails) {
+      conflicts.push(`${fixed}: details=${fromDetails} → 이미지=${fromImage}`);
+    }
+
+    return {
+      key: fixed,
+      color: fixed.replace(/,/g, ' / '),
+      label: fixed.replace(/,/g, ' / '),
+      material: null,
+      priceCad: priceCadOf(details),
+      // 이미지 파일명이 정본이다. details.txt는 이미지가 없을 때만 쓴다 (styleFromImage 주석 참고).
+      styleNo: fromImage ?? fromDetails,
+      originCountry: originOf(details),
+      detailsText: details,
+      dir,
+      images: sorted,
+    };
+  }
+}
+
 export async function parseNewBrands() {
   parseWarnings.length = 0;
-  const [coach, polo, lulu] = await Promise.all([parseCoach(), parsePolo(), parseLululemon()]);
-  return [...coach, ...polo, ...lulu];
+  const [coach, polo, lulu, goose] = await Promise.all([
+    parseCoach(), parsePolo(), parseLululemon(), parseCanadaGoose(),
+  ]);
+  return [...coach, ...polo, ...lulu, ...goose];
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

@@ -28,9 +28,9 @@ export default function Error({
     <Container as="main" className="flex min-h-[70vh] flex-col items-start justify-center gap-6 py-24">
       <div className="flex flex-col gap-3">
         <p className="text-meta font-bold tracking-wide text-muted-text">ERROR</p>
-        <h1 className="text-editorial font-bold text-ink">화면을 불러오지 못했어요</h1>
+        <h1 className="text-editorial font-bold text-ink">화면을 불러오지 못했습니다</h1>
         <p className="max-w-[var(--measure-prose)] text-body text-muted-text">
-          잠시 후 다시 시도해 주세요. 계속 같은 화면이 나오면 고객센터로 알려 주세요.
+          잠시 후 다시 시도해 주십시오. 계속 같은 화면이 나오면 고객센터로 알려 주십시오.
         </p>
       </div>
 

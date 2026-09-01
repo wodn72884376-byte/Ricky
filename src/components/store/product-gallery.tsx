@@ -85,7 +85,15 @@ function GalleryCut({ src, alt, priority }: { src: string; alt: string; priority
         src={src}
         alt={alt}
         fill
-        sizes="(max-width: 768px) 50vw, 25vw"
+        /*
+          확대 배율을 폭에 포함시킨다. 셀은 데스크톱에서 뷰포트의 12~21%지만
+          호버하면 1.9배가 되므로, 셀 크기에 맞춰 받으면 **확대한 순간 뭉개진다** —
+          브라우저는 확대를 모르고 `sizes`만 보고 고른다.
+          실측(2560/1920/1440/1024/390)에서 확대 후 최대치가 39.5vw라 40vw로 둔다.
+        */
+        sizes="(max-width: 768px) 85vw, 40vw"
+        /* 원본이 이미 q80 webp다. 기본 75로 다시 굽으면 옷감 그라데이션에 띠가 생긴다 */
+        quality={90}
         priority={priority}
         style={{ transformOrigin: origin }}
         className="object-cover transition-transform duration-[var(--motion-gallery-zoom)] ease-out

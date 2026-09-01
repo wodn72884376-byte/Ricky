@@ -15,12 +15,25 @@ export const dynamic = 'force-dynamic';
 
 async function loadCounts() {
   const supabase = await createClient();
-  const count = async (table: 'products' | 'orders' | 'supplier_listings' | 'inquiries') => {
+  const count = async (table: 'products' | 'orders' | 'supplier_listings') => {
     const { count: n } = await supabase.from(table).select('*', { count: 'exact', head: true });
     return n ?? 0;
   };
+
+  /*
+    문의는 **미답변만** 센다. 전체를 세면 카드 라벨(`미답변 문의`)과 숫자가 어긋나고,
+    답변을 다 해도 숫자가 줄지 않아 처리 큐로 쓸 수 없다.
+  */
+  const pendingInquiries = async () => {
+    const { count: n } = await supabase
+      .from('inquiries')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'open');
+    return n ?? 0;
+  };
+
   const [products, orders, listings, inquiries] = await Promise.all([
-    count('products'), count('orders'), count('supplier_listings'), count('inquiries'),
+    count('products'), count('orders'), count('supplier_listings'), pendingInquiries(),
   ]);
   return { products, orders, listings, inquiries };
 }

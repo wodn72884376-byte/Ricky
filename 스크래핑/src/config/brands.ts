@@ -34,6 +34,43 @@ export type SiteConfig = {
   productCodeFromUrl?: (url: string) => string | null;
   /** 이 사이트에서 상품 목록을 사이트맵으로 얻을 수 없는 이유. doctor 가 그대로 보여준다. */
   discoveryNote?: string;
+  /**
+   * 자동 수집이 되는 사이트인가.
+   *
+   * `'bookmarklet'` 이면 **네트워크로 시도조차 하지 않는다.** URL 을 알아도 소용없다 —
+   * 봇 방어가 앞문까지 막고 있어 어차피 차단 페이지를 받는다(캐나다구스는 robots.txt 도
+   * 429 다). 그런데 북마클릿으로 한 번 수집하면 `learnUrls` 가 URL 을 학습하므로,
+   * 표시가 없으면 그 뒤로 **매 회차 헛되이 두드리게 된다** — 정중하지도 않고
+   * 리포트는 '수집 실패'로 채워진다.
+   *
+   * 기본값은 `'auto'`. 막힌 것만 표시한다.
+   */
+  automation?: 'auto' | 'bookmarklet';
+
+  /**
+   * 같은 브랜드로 인정하는 **추가 호스트**.
+   *
+   * `origin` 하나로는 부족하다 — 아크테릭스는 정가몰(arcteryx.com)과 아울렛
+   * (outlet.arcteryx.com)이 호스트가 다르고, 마크업·JSON-LD·robots 규칙은 같다.
+   * 여기 없으면 그 주소는 **어느 브랜드도 아닌 것**이 되어 조회 대상에서 조용히
+   * 빠진다 (실측: 아울렛 8건이 카탈로그엔 있는데 재고 조회가 0건이었다).
+   *
+   * 접두어로 넓히지 않고 호스트를 하나씩 적는다. 도메인 규칙으로 뭉개면
+   * 언젠가 남의 사이트를 이 브랜드로 착각한다.
+   */
+  extraHosts?: string[];
+
+  /**
+   * 품절 항목을 **아예 싣지 않는** 사이트인가.
+   *
+   * 켜면 같은 상품의 다른 색상에서 본 사이즈를 축으로 삼아 빠진 칸을 품절로 채운다.
+   *
+   * **캐나다구스에는 켜지 않는다.** offer 가 전부 `InStock` 인 건 맞지만, 빠진 것이
+   * 품절이라는 전제가 틀렸다 — 실측(2026-08-31): Garson Vest 의 Black S · Volcano S 는
+   * 공식몰 화면에 멀쩡히 있는데 offer 목록에는 없었다. 즉 **빠진 것은 모르는 것**이다.
+   * 모르는 것을 품절이라고 적으면 파는 물건이 안 팔린다. 화면(DOM)이 답이다.
+   */
+  omitsSoldOut?: boolean;
 };
 
 export type BrandConfig = {
@@ -62,6 +99,20 @@ const anyOf =
   (url: string) =>
     fragments.some((f) => url.includes(f));
 
+/** 이 사이트가 담당하는 호스트들. `origin` + `extraHosts`. */
+export function siteHosts(site: SiteConfig): string[] {
+  return [new URL(site.origin).host, ...(site.extraHosts ?? [])];
+}
+
+/** 이 주소가 이 사이트의 것인가. 호스트가 정확히 같아야 한다. */
+export function belongsToSite(site: SiteConfig, url: string): boolean {
+  try {
+    return siteHosts(site).includes(new URL(url).host);
+  } catch {
+    return false;
+  }
+}
+
 // ---------------------------------------------------------------------------
 
 export const BRANDS: Record<BrandKey, BrandConfig> = {
@@ -76,6 +127,12 @@ export const BRANDS: Record<BrandKey, BrandConfig> = {
       entry: 'https://arcteryx.com/ca/en',
       // Kasada(KPSDK). 사이트맵(정적 XML)은 HTTP 로 열리지만 PDP 는 곧 429 로 잠긴다.
       transport: 'browser',
+      /*
+       * 아울렛은 호스트만 다르고 플랫폼은 같다 — 같은 `/ca/en/shop/` 경로에
+       * 같은 JSON-LD 를 싣고 robots 도 같은 것을 막는다(실측 2026-09-01).
+       * 정가몰에서 단종된 이월 상품이 여기 남아 있어 별도 상품으로 판다.
+       */
+      extraHosts: ['outlet.arcteryx.com'],
       sitemapUrls: ['https://arcteryx.com/sitemap.xml'],
       isProductUrl: (u) => u.includes('/ca/en/shop/'),
       searchUrl: (q) => `https://arcteryx.com/ca/en/search?q=${encodeURIComponent(q)}`,
@@ -132,7 +189,9 @@ export const BRANDS: Record<BrandKey, BrandConfig> = {
     ca: {
       origin: 'https://shop.lululemon.com',
       entry: 'https://shop.lululemon.com/en-ca',
-      transport: 'browser', // Akamai
+      transport: 'browser',
+      // Akamai 가 목록·상세를 모두 막는다.
+      automation: 'bookmarklet',
       sitemapUrls: [
         'https://shop.lululemon.com/sitemap_index.xml',
         'https://shop.lululemon.com/sitemap.xml',
@@ -230,17 +289,31 @@ export const BRANDS: Record<BrandKey, BrandConfig> = {
     ca: {
       origin: 'https://www.canadagoose.com',
       entry: 'https://www.canadagoose.com/ca/en/',
-      transport: 'browser', // 429 rate limit
+      /*
+       * Kasada 가 **앞문까지** 걸려 있다 — robots.txt 조차 429 다(2026-08-29 실측).
+       * 아크테릭스는 같은 Kasada 라도 사이트맵·robots 를 정적 파일로 내주기 때문에
+       * 목록을 HTTP 로 확보하고 PDP 만 브라우저로 여는 게 통한다. 여기는 그 문이 없다.
+       * robots.txt 를 못 읽으면 거기서 멈춘다 — 수집은 북마클릿으로만 한다.
+       */
+      transport: 'browser',
+      // Kasada 가 robots.txt 까지 429 다(2026-08-29 실측). 뚫을 문이 없다.
+      automation: 'bookmarklet',
       sitemapUrls: [
         'https://www.canadagoose.com/sitemap_index.xml',
         'https://www.canadagoose.com/ca/en/sitemap.xml',
       ],
-      isProductUrl: (u) => /\/ca\/en\/.+-\d{4}[A-Z]?\.html/.test(u) || u.includes('/ca/en/p/'),
+      // 스타일 코드는 숫자 4자리 + 성별/디스크 접미 1~2자다 — 2080M(Classic) · 2080MB(Black) · 2052MT(Tonal)
+      isProductUrl: (u) => /\/ca\/en\/.+-\d{4}[A-Z]{0,2}\.html/.test(u) || u.includes('/ca/en/p/'),
       followSitemap: (u) => u.includes('/ca/en') || u.includes('ca_en'),
       searchUrl: (q) => `https://www.canadagoose.com/ca/en/search?q=${encodeURIComponent(q)}`,
       pdpWaitSelector: 'script[type="application/ld+json"]',
-      // Expedition Parka 4660M 처럼 4자리 + 성별코드가 스타일번호다
-      productCodeFromUrl: (u) => u.match(/-(\d{4}[MLWU]?)\b/)?.[1] ?? null,
+      /*
+       * Expedition Parka 4660M 처럼 4자리 + 접미가 스타일번호다.
+       * 접미가 두 글자인 경우가 있다 — 로고 디스크 마감마다 코드가 따로다
+       * (MacMillan Parka: 2080M Classic · 2080MB Black, Langford: 2052MT Tonal).
+       * 한 글자만 잡으면 2080MB 를 2080M 으로 읽어 다른 상품의 재고를 가져온다.
+       */
+      productCodeFromUrl: (u) => u.match(/-(\d{4}[A-Z]{0,2})(?=\.html|$)/i)?.[1] ?? null,
     },
     kr: {
       // canadagoose.kr 은 응답이 없다. 국내 공식몰은 canadagoose.co.kr 이다.
@@ -337,6 +410,8 @@ export const BRANDS: Record<BrandKey, BrandConfig> = {
       entry: 'https://www.ralphlauren.ca/',
       // PerimeterX 캡차(307 px-captcha). 선언된 사이트맵(/index)도 같은 벽에 막힌다.
       transport: 'browser',
+      // PerimeterX 가 PDP 를 막는다. 사이트맵은 열리지만 상세를 못 읽는다.
+      automation: 'bookmarklet',
       sitemapUrls: ['https://www.ralphlauren.ca/index'],
       // 실측 URL: /men-clothing-sweaters/cable-knit-cotton-sweater/515061.html
       // 슬러그와 코드 사이가 대시가 아니라 슬래시인 경우가 있다.
@@ -391,7 +466,9 @@ export const BRANDS: Record<BrandKey, BrandConfig> = {
     ca: {
       origin: 'https://www.tumi.ca',
       entry: 'https://www.tumi.ca/',
-      transport: 'browser', // 일반 요청은 연결 자체가 끊긴다
+      transport: 'browser',
+      // 일반 요청은 연결 자체가 끊긴다 — 자동 수집 경로가 없다.
+      automation: 'bookmarklet',
       sitemapUrls: ['https://www.tumi.ca/sitemap_index.xml', 'https://www.tumi.ca/sitemap.xml'],
       isProductUrl: (u) => /\/p\//.test(u) || /-\d{9,}\.html/.test(u),
       searchUrl: (q) => `https://www.tumi.ca/search?q=${encodeURIComponent(q)}`,
@@ -427,6 +504,28 @@ export const BRANDS: Record<BrandKey, BrandConfig> = {
 };
 
 export const ALL_BRAND_KEYS = Object.keys(BRANDS) as BrandKey[];
+
+/**
+ * 상위 프로젝트 카탈로그의 `brandSlug` → 수집기 `BrandKey`.
+ *
+ * 두 이름이 갈린 것이 있다. 카탈로그와 DB 는 상품명을 슬러그로 만들어 `canada-goose`
+ * 이고(마이그레이션 `20260828000004_brands_expansion.sql` 에 이미 시드돼 있다),
+ * 수집기 레지스트리 키는 `canadagoose` 다.
+ *
+ * **DB 쪽이 정본이다** — 이미 적재된 식별자를 바꾸면 조인이 깨지고 마이그레이션이 하나 더 든다.
+ * 그래서 수집기가 맞춘다. 이 표가 없으면 캐나다구스 상품이 조회 대상에서 통째로 빠지는데,
+ * 오류 없이 조용히 빠지므로 아무도 눈치채지 못한다.
+ */
+const BRAND_SLUG_ALIAS: Record<string, BrandKey> = {
+  'canada-goose': 'canadagoose',
+  'tommy-hilfiger': 'tommy',
+};
+
+/** 카탈로그 brandSlug 를 수집기 키로 바꾼다. 모르는 브랜드면 null. */
+export function toBrandKey(brandSlug: string): BrandKey | null {
+  const aliased = BRAND_SLUG_ALIAS[brandSlug] ?? brandSlug;
+  return aliased in BRANDS ? (aliased as BrandKey) : null;
+}
 
 export function resolveBrands(input: string | undefined): BrandKey[] {
   if (!input || input === 'all') return ALL_BRAND_KEYS;

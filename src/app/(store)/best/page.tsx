@@ -8,8 +8,8 @@ import { EmptyResult } from '@/components/ui/states';
 import { bestSellers, categoryTabs, sortCards, toCardProps } from '@/lib/catalog';
 
 export const metadata = {
-  title: 'BEST — RICKY',
-  description: '한국 정발가와 가장 크게 벌어지는 상품부터 보여드려요.',
+  title: 'BEST',
+  description: '한국 정발가와 가장 크게 벌어지는 상품부터 보여드립니다.',
 };
 
 /**
@@ -36,8 +36,8 @@ export default async function BestPage({ searchParams }: PageProps<'/best'>) {
         <div>
           <h1 className="text-headline font-bold">BEST</h1>
           <p className="mt-2 max-w-[var(--measure-prose)] text-body text-muted-text">
-            아직 주문이 충분히 쌓이지 않아 판매량 순위를 낼 수 없어요. 지금은 한국 정발가와 가장 크게
-            벌어지는 순으로 보여드려요.
+            아직 주문이 충분히 쌓이지 않아 판매량 순위를 낼 수 없습니다. 지금은 한국 정발가와 가장 크게
+            벌어지는 순으로 보여드립니다.
           </p>
         </div>
         <p data-numeric className="text-body text-muted-text">
@@ -51,7 +51,7 @@ export default async function BestPage({ searchParams }: PageProps<'/best'>) {
 
       {visible.length === 0 ? (
         <div className="flex flex-col items-start gap-6">
-          <EmptyResult message="이 조건에 맞는 상품이 없어요." />
+          <EmptyResult message="이 조건에 맞는 상품이 없습니다." />
           <ButtonLink href="/best" chevron>
             전체 보기
           </ButtonLink>

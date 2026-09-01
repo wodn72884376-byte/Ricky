@@ -15,13 +15,14 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 
 import { CATALOG } from '@app/lib/catalog.generated.ts';
-import { BRANDS } from '../config/brands.ts';
+import { BRANDS, toBrandKey } from '../config/brands.ts';
 import { runtime } from '../config/runtime.ts';
 import { log } from '../core/logger.ts';
 import type { BrandKey } from '../core/types.ts';
 import { collectFromSitemap } from '../extract/sitemap.ts';
 import { jaccard, tokenize } from '../match/normalize.ts';
 import { profileOf } from '../match/matcher.ts';
+import { mergeProductStock } from './import.ts';
 import type { ProductStock } from './types.ts';
 
 const DATA_DIR = fileURLToPath(runtime.paths.data);
@@ -32,11 +33,27 @@ export type CatalogTarget = {
   brand: BrandKey;
   name: string;
   /** 남성/여성 동명 상품을 가르는 축. 이름만으로는 구분되지 않는다. */
-  gender: 'men' | 'women' | 'unisex';
+  gender: 'men' | 'women' | 'unisex' | 'kids';
   /** SKU 접두어에서 뽑은 브랜드 상품코드. 없으면 빈 배열. */
   codes: string[];
-  /** 해석된 캐나다 공식몰 URL. 못 찾았으면 null. */
+  /**
+   * 해석된 캐나다 공식몰 URL 들.
+   *
+   * **한 상품이 페이지 여러 개일 수 있다.** 캐나다구스는 로고 디스크 마감마다 스타일
+   * 코드가 따로 있고(MacMillan Parka = 2080M · 2080MB) 각각 별도 PDP다. 카탈로그는
+   * 이걸 한 상품의 색상으로 접어 두므로, 코드 하나만 풀면 나머지 디스크의 재고는
+   * 영영 수집되지 않는다 — 조용히 빠지는 게 가장 나쁘다.
+   */
+  urls: string[];
+  /** 대표 URL(첫 번째). 하위 호환·표시용. */
   url: string | null;
+  /**
+   * 카탈로그에 사람이 적어 둔 공식몰 URL. **해석보다 우선한다.**
+   *
+   * 사이트맵·이름 매칭은 추측이고 이건 답이다. 캐나다구스처럼 사이트맵이 429 인
+   * 브랜드는 이것 말고는 URL 을 알 길이 없다.
+   */
+  officialUrls: string[];
   /**
    * 이름으로는 여러 건이 걸려 고르지 못한 URL 들. 사람이 골라
    * `data/supplier-urls.json` 에 적어 넣으면 다음 실행부터 그대로 쓴다.
@@ -55,18 +72,49 @@ export function codeFromSku(sku: string): string | null {
 }
 
 /** 카탈로그에 등록된 조회 대상. brands 를 주면 그 브랜드만. */
+/**
+ * 카탈로그가 들고 있는 공식몰 URL 을 페이지 단위로 추린다.
+ *
+ * 캐나다구스는 색상마다 URL 이 있는데(`...2052M.html?Color=9061`) 대부분 **같은
+ * 페이지**다. 그대로 다 열면 한 페이지를 색상 수만큼 여는 셈이라, 경로가 같으면
+ * 하나로 접는다. 수집기가 페이지 안에서 색상을 돌기 때문에 한 번이면 충분하다.
+ *
+ * 반대로 경로가 다르면 **전부 남긴다** — 디스크 마감마다 별도 PDP 라
+ * 하나로 접으면 나머지 디스크 재고가 통째로 빠진다.
+ */
+function officialUrlsOf(p: {
+  officialUrl?: string | null;
+  variants: { officialUrl?: string | null }[];
+}): string[] {
+  const byPath = new Map<string, string>();
+  for (const url of [p.officialUrl, ...p.variants.map((v) => v.officialUrl)]) {
+    if (!url) continue;
+    let key: string;
+    try {
+      const u = new URL(url);
+      key = `${u.origin}${u.pathname}`;
+    } catch {
+      continue; // 주소가 아니면 버린다 — 잘못된 값으로 남의 사이트를 두드리지 않는다
+    }
+    if (!byPath.has(key)) byPath.set(key, url);
+  }
+  return [...byPath.values()];
+}
+
 export function catalogTargets(brands?: BrandKey[]): CatalogTarget[] {
   const want = brands ? new Set(brands) : null;
 
-  return CATALOG.filter((p) => p.brandSlug in BRANDS)
-    .filter((p) => !want || want.has(p.brandSlug as BrandKey))
+  return CATALOG.filter((p) => toBrandKey(p.brandSlug) !== null)
+    .filter((p) => !want || want.has(toBrandKey(p.brandSlug)!))
     .map((p) => ({
       slug: p.slug,
-      brand: p.brandSlug as BrandKey,
+      brand: toBrandKey(p.brandSlug)!,
       name: p.name,
       gender: p.gender,
       codes: [...new Set(p.variants.map((v) => codeFromSku(v.sku)).filter((c): c is string => !!c))],
+      urls: [],
       url: null,
+      officialUrls: officialUrlsOf(p),
     }));
 }
 
@@ -85,6 +133,16 @@ function urlMatcher(brand: BrandKey, code: string): (url: string) => boolean {
     const last4 = code.slice(-4);
     const rx = new RegExp(`-${last4}(?:[?#]|$)`);
     return (url) => rx.test(url);
+  }
+  if (brand === 'canadagoose') {
+    /*
+     * 코드가 마지막 경로 조각 전체가 아니라 **꼬리**다 —
+     * `/ca/en/macmillan-parka-2080MB.html`.
+     * 그리고 2080M 은 2080MB 의 접두사라, 경계를 안 두면 Classic 코드가
+     * Black 페이지에 붙는다.
+     */
+    const rx = new RegExp(`-${code}\\.html$`, 'i');
+    return (url) => rx.test(url.split('?')[0] ?? url);
   }
   return (url) => url.toUpperCase().endsWith(`/${code}.HTML`);
 }
@@ -112,7 +170,16 @@ export function arcteryxNameCandidates(name: string, gender: string, urls: strin
   return urls.filter((u) => rx.test(u));
 }
 
-type LinkCache = Record<string, { url: string; resolvedAt: string; via: string }>;
+/**
+ * slug → 공급처 URL 캐시.
+ *
+ * `url`(단수)은 예전 형식이다. 읽을 때만 받아 주고 쓸 때는 `urls`를 쓴다 —
+ * 사람이 손으로 적어 넣은 파일을 깨지 않기 위해서다.
+ */
+type LinkCache = Record<
+  string,
+  { url?: string; urls?: string[]; resolvedAt: string; via: string }
+>;
 
 async function loadLinks(): Promise<LinkCache> {
   try {
@@ -133,24 +200,42 @@ async function saveLinks(cache: LinkCache): Promise<void> {
  * 사이트맵을 브랜드당 한 번만 읽고 결과를 파일에 남긴다 — 매 실행마다 4만 건짜리
  * XML 을 다시 받을 이유가 없고, 상대 서버에도 부담이다.
  */
+/**
+ * 캐시에 든 URL 을 쓸지 정한다.
+ *
+ * `--fresh` 는 **자동 해석 결과만** 버린다. 사람이 `supplier-urls.json` 에 손으로 적어 넣은
+ * URL(`via:'manual'`)은 자동 해석이 못 푸는 상품의 유일한 답이다 — 실측: 아크테릭스
+ * Beta Jacket 은 카탈로그 코드(X000010878)가 사이트에 없어 코드로도 이름으로도 못 푼다.
+ * 이걸 지우면 새로고침 한 번에 사람이 확인한 결과가 날아간다.
+ */
+export function cachedUrls(
+  entry: { url?: string; urls?: string[]; via: string } | undefined,
+  fresh: boolean,
+): string[] {
+  if (!entry) return [];
+  // 예전 캐시는 url 하나만 들고 있다 — 그대로 읽는다.
+  const all = entry.urls?.length ? entry.urls : entry.url ? [entry.url] : [];
+  if (!fresh) return all;
+  return entry.via === 'manual' ? all : [];
+}
+
 export async function resolveTargetUrls(
   targets: CatalogTarget[],
   opts: { fresh?: boolean } = {},
 ): Promise<CatalogTarget[]> {
   const cache = await loadLinks();
-  /*
-   * --fresh 는 자동 해석 결과만 버린다. 사람이 supplier-urls.json 에 손으로 적어 넣은
-   * URL(via:'manual')은 자동 해석이 못 푸는 상품의 유일한 답이므로 지우면 안 된다.
-   */
-  const pinned = (slug: string) => (cache[slug]?.via === 'manual' ? (cache[slug]?.url ?? null) : null);
-  const out = targets.map((t) => ({
-    ...t,
-    url: opts.fresh ? pinned(t.slug) : (cache[t.slug]?.url ?? null),
-  }));
+  const out = targets.map((t) => {
+    /*
+     * 카탈로그에 적힌 URL 이 먼저다. 해석은 추측이고 이건 사람이 확인한 답이다.
+     * 캐시를 앞에 두면 예전에 잘못 해석한 URL 이 계속 이긴다.
+     */
+    const urls = t.officialUrls.length > 0 ? t.officialUrls : cachedUrls(cache[t.slug], opts.fresh ?? false);
+    return { ...t, urls, url: urls[0] ?? null };
+  });
 
   const byBrand = new Map<BrandKey, CatalogTarget[]>();
   for (const t of out) {
-    if (t.url || t.codes.length === 0) continue;
+    if (t.urls.length > 0 || t.codes.length === 0) continue;
     const list = byBrand.get(t.brand) ?? [];
     list.push(t);
     byBrand.set(t.brand, list);
@@ -178,16 +263,27 @@ export async function resolveTargetUrls(
 
     let found = 0;
     for (const t of pending) {
+      /*
+       * 코드마다 URL 을 찾는다 — 첫 건에서 멈추지 않는다.
+       * 캐나다구스는 디스크마다 코드가 따로라, 멈추면 나머지 디스크가 통째로 빠진다.
+       */
+      const hits: string[] = [];
       for (const code of t.codes) {
         const match = entries.find((e) => urlMatcher(brand, code)(e.url));
-        if (match) {
-          t.url = match.url;
-          cache[t.slug] = { url: match.url, resolvedAt: new Date().toISOString(), via: 'sitemap' };
-          found += 1;
-          break;
+        if (match && !hits.includes(match.url)) hits.push(match.url);
+      }
+      if (hits.length > 0) {
+        t.urls = hits;
+        t.url = hits[0]!;
+        cache[t.slug] = { urls: hits, resolvedAt: new Date().toISOString(), via: 'sitemap' };
+        found += 1;
+        if (hits.length < t.codes.length) {
+          log.warn(
+            `  ${t.name}: 코드 ${t.codes.length}개 중 ${hits.length}개만 URL 을 찾았다 — 나머지 재고는 수집되지 않는다`,
+          );
         }
       }
-      if (t.url || brand !== 'arcteryx') continue;
+      if (t.urls.length > 0 || brand !== 'arcteryx') continue;
 
       // 코드가 안 맞았다 — 시즌 코드 교체일 수 있으니 이름으로 후보를 본다.
       const cands = arcteryxNameCandidates(
@@ -196,8 +292,9 @@ export async function resolveTargetUrls(
         entries.map((e) => e.url),
       );
       if (cands.length === 1) {
+        t.urls = [cands[0]!];
         t.url = cands[0]!;
-        cache[t.slug] = { url: cands[0]!, resolvedAt: new Date().toISOString(), via: 'name' };
+        cache[t.slug] = { urls: [cands[0]!], resolvedAt: new Date().toISOString(), via: 'name' };
         found += 1;
         log.warn(
           `  ${t.name}: 코드 ${t.codes.join(',')} 가 사이트맵에 없어 이름으로 찾았다 → ${cands[0]}`,
@@ -227,19 +324,32 @@ export async function learnUrls(stocks: ProductStock[], targets: CatalogTarget[]
   let learned = 0;
 
   for (const s of stocks) {
-    if (s.error || cache[matchKeyOf(s, targets) ?? '']) continue;
+    if (s.error) continue;
     const t = matchToCatalog(s, targets);
-    if (!t || cache[t.slug]) continue;
-    cache[t.slug] = { url: s.productUrl, resolvedAt: new Date().toISOString(), via: 'bookmarklet' };
+    if (!t) continue;
+
+    /*
+     * 이미 아는 URL 이면 넘어가되, **새 URL 이면 덧붙인다.**
+     * 한 상품이 페이지 여러 개일 수 있다 — 캐나다구스는 디스크마다 PDP 가 따로다.
+     * 예전엔 slug 에 항목이 있으면 통째로 건너뛰어서, 두 번째 디스크를 북마클릿으로
+     * 받아 와도 URL 이 학습되지 않았다. 캐나다구스는 봇 차단이라 이 경로가 유일하다.
+     */
+    const prev = cache[t.slug];
+    const known = prev?.urls?.length ? prev.urls : prev?.url ? [prev.url] : [];
+    if (known.includes(s.productUrl)) continue;
+
+    cache[t.slug] = {
+      urls: [...known, s.productUrl],
+      resolvedAt: new Date().toISOString(),
+      // 사람이 직접 적어 넣은 항목이면 그 표시를 지키다 — --fresh 가 지우면 안 된다
+      via: prev?.via === 'manual' ? 'manual' : 'bookmarklet',
+    };
     learned += 1;
   }
 
   if (learned > 0) await saveLinks(cache);
   return learned;
 }
-
-const matchKeyOf = (s: ProductStock, targets: CatalogTarget[]) =>
-  matchToCatalog(s, targets)?.slug ?? null;
 
 // ---------------------------------------------------------------------------
 // 대조
@@ -277,7 +387,7 @@ export function matchToCatalog(
   const mine = targets.filter((t) => t.brand === stock.brand);
   if (mine.length === 0) return null;
 
-  const byUrl = mine.find((t) => t.url && t.url === stock.productUrl);
+  const byUrl = mine.find((t) => t.urls.includes(stock.productUrl));
   if (byUrl) return byUrl;
 
   const codes = new Set<string>();
@@ -348,20 +458,29 @@ export function coverage(stocks: ProductStock[], targets: CatalogTarget[]): Cata
   const extra: ProductStock[] = [];
   const hit = new Set<string>();
 
+  /*
+   * 한 카탈로그 상품이 페이지 여러 개일 수 있다 — 캐나다구스는 디스크 마감마다
+   * 별도 PDP 이고 카탈로그는 그걸 한 상품의 색상으로 접어 둔다.
+   * 예전엔 **행이 많은 쪽만 남겼는데**, 그러면 나머지 디스크 재고가 통째로 사라진다.
+   * 실측: Langford 3페이지 중 Black Disc 만 남아 Classic·Tonal 5색이 미연결로 떨어졌다.
+   * 버리지 않고 합친다.
+   */
+  const byTarget = new Map<string, { target: CatalogTarget; parts: ProductStock[] }>();
+
   for (const s of stocks) {
     const t = s.error ? null : matchToCatalog(s, targets);
     if (t) {
-      // 같은 카탈로그 상품이 여러 번 잡히면 variant 가 많은 쪽을 남긴다.
-      const prev = covered.find((c) => c.target.slug === t.slug);
-      if (prev) {
-        if (s.rows.length > prev.stock.rows.length) prev.stock = s;
-      } else {
-        covered.push({ target: t, stock: s });
-      }
+      const entry = byTarget.get(t.slug) ?? { target: t, parts: [] };
+      entry.parts.push(s);
+      byTarget.set(t.slug, entry);
       hit.add(t.slug);
     } else if (!s.error) {
       extra.push(s);
     }
+  }
+
+  for (const { target, parts } of byTarget.values()) {
+    covered.push({ target, stock: parts.length === 1 ? parts[0]! : mergeProductStock(parts) });
   }
 
   return { covered, missing: targets.filter((t) => !hit.has(t.slug)), extra };

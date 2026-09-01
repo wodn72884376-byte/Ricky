@@ -79,7 +79,9 @@ export function ProductFilterBar({
               onClick={() => onTabChange(tab.value)}
               aria-pressed={active}
               className={cn(
-                'flex h-12 shrink-0 items-center px-3 text-nav whitespace-nowrap',
+                // 16px (2026-08-31 운영자 요청). 22px(`text-nav`)는 이 바를 헤더 2행처럼
+                // 읽히게 만들어서 아래 상품 이름(15px)보다 무거웠다.
+                'flex h-12 shrink-0 items-center px-3 text-body whitespace-nowrap',
                 active
                   ? 'font-extrabold text-ink underline decoration-2 underline-offset-[14px]'
                   : 'font-normal text-muted-text hover:text-ink',
@@ -98,7 +100,8 @@ export function ProductFilterBar({
           aria-expanded={open}
           aria-haspopup="listbox"
           aria-controls={open ? menuId : undefined}
-          className="flex h-12 items-center gap-2 pl-3 text-nav text-ink"
+          // 탭과 같은 바에 있으므로 같은 크기여야 한다 — 한쪽만 바꾸면 바가 기울어 보인다
+          className="flex h-12 items-center gap-2 pl-3 text-body text-ink"
         >
           {current.label}
           <ChevronDown

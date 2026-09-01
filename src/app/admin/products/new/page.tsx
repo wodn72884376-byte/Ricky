@@ -2,7 +2,7 @@ import { BRAND_COLUMNS } from '@/lib/nav';
 import { ProductForm } from '../product-form';
 import { createProduct } from './actions';
 
-export const metadata = { title: '상품 등록 — RICKY 운영' };
+export const metadata = { title: '상품 등록' };
 
 /**
  * 상품 등록.

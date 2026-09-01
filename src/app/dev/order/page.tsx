@@ -21,19 +21,10 @@ const SAMPLE: OrderDetail = {
   address2: '101동 1001호',
   pccc: 'P123456789012',
   contactEmail: 'buyer@example.com',
+  /* 주문 당시 스냅샷이다 — 실제 화면도 `order_items` 의 이 네 값만 갖는다 */
   items: [
-    {
-      slug: 'arcteryx-beta-lt-black', brand: "Arc'teryx", name: 'Beta LT 자켓 블랙',
-      option: 'M', qty: 1, unitPriceKrw: 742_000,
-      imageUrl: '/images/samples/jacket-black.webp',
-      imageAlt: '카멜색 후드 재킷을 입은 뒷모습',
-    },
-    {
-      slug: 'lululemon-scuba-hoodie', brand: 'lululemon', name: 'Scuba 오버사이즈 후디',
-      option: '4', qty: 2, unitPriceKrw: 121_000,
-      imageUrl: '/images/samples/shirt-denim.webp',
-      imageAlt: '데님 셔츠를 입고 카메라를 든 상반신',
-    },
+    { name: "Arc'teryx Beta LT 자켓 블랙", option: 'M', qty: 1, unitPriceKrw: 742_000 },
+    { name: 'lululemon Scuba 오버사이즈 후디', option: '4', qty: 2, unitPriceKrw: 121_000 },
   ],
   subtotalKrw: 984_000,
   shippingKrw: 23_000,

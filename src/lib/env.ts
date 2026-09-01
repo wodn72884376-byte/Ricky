@@ -18,10 +18,18 @@ const publicSchema = z.object({
   NEXT_PUBLIC_SITE_URL: z.url().default('http://localhost:3000'),
 });
 
+/*
+  Stripe 키는 여기 없다. 결제를 스마트스토어로 넘겼기 때문이다(6c8b67e).
+
+  남겨 두면 `createAdminClient()` 가 **Supabase 와 무관한 이유로** 던진다 —
+  시드 스크립트나 크롤러 워커가 Stripe 자리값이 없다고 죽는 건 진단이 어렵다.
+  결제를 다시 자체 처리하게 되면 그때 되살린다.
+
+  `src/lib/pricing/` 의 Stripe 수수료 상수는 그대로 둔다. 그건 원가 계산에 쓰는
+  숫자이지 API 키가 아니다.
+*/
 const serverSchema = publicSchema.extend({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
-  STRIPE_SECRET_KEY: z.string().min(1),
-  STRIPE_WEBHOOK_SECRET: z.string().min(1).optional(),
 });
 
 export type PublicEnv = z.infer<typeof publicSchema>;

@@ -1,0 +1,123 @@
+{
+  "_주석": [
+    "손으로 넣는 공식몰 URL. 재고 수집기가 해석하지 못한 상품을 여기서 메운다.",
+    "스크래핑/data/supplier-urls.json 보다 **우선**한다 — 수집기가 다시 돌아도 이 값이 남는다.",
+    "url  : 상품 페이지 (상품 단위)",
+    "byColor : 색상마다 페이지가 다를 때. 키는 카탈로그의 variant.color 와 정확히 같아야 한다.",
+    "          캐나다구스는 로고 디스크마다, 아크테릭스는 정가몰/아울렛이 갈릴 때 그렇다."
+  ],
+  "polo-cable-knit-cotton-quarter-zip-sweater-women": {
+    "url": "https://www.ralphlauren.ca/women-clothing-sweaters/cable-knit-cotton-quarter-zip-sweater/100040971.html#lang=en_CA&rootLevelCat=&br=t&q=Cable-Knit%2BCotton%2BQuarter-Zip%2BSweater&start=1"
+  },
+  "canada-goose-crofton-enduraluxe-vest-men": {
+    "byColor": {
+      "Black": "https://www.canadagoose.com/ca/en/pr/crofton-enduraluxe-vest-1925MB.html?Color=9061",
+      "Limestone": "https://www.canadagoose.com/ca/en/pr/crofton-enduraluxe-vest-1925MB.html?Color=9432"
+    }
+  },
+  "canada-goose-freestyle-crew-vest-men": {
+    "byColor": {
+      "Black Disc / North Star White": "https://www.canadagoose.com/ca/en/pr/freestyle-crew-vest-black-disc-4159MB.html",
+      "Classic Disc / Atlantic Navy": "https://www.canadagoose.com/ca/en/pr/freestyle-crew-vest-2054M.html?Color=63",
+      "Classic Disc / Black": "https://www.canadagoose.com/ca/en/pr/freestyle-crew-vest-2054M.html?Color=61",
+      "Classic Disc / Graphite": "https://www.canadagoose.com/ca/en/pr/freestyle-crew-vest-2054M.html?Color=66",
+      "Classic Disc / Limestone": "https://www.canadagoose.com/ca/en/pr/freestyle-crew-vest-2054M.html?Color=432",
+      "Classic Disc / Sagebrush": "https://www.canadagoose.com/ca/en/pr/freestyle-crew-vest-2054M.html?Color=852"
+    }
+  },
+  "canada-goose-garson-vest-men": {
+    "byColor": {
+      "Black": "https://www.canadagoose.com/ca/en/pr/garson-vest-black-disc-2081MB.html?Color=9061",
+      "Coastal Grey": "https://www.canadagoose.com/ca/en/pr/garson-vest-black-disc-2081MB.html?Color=811",
+      "North Star White": "https://www.canadagoose.com/ca/en/pr/garson-vest-black-disc-2081MB.html?Color=433",
+      "Taupe Grey": "",
+      "Terra": "https://www.canadagoose.com/ca/en/pr/garson-vest-black-disc-2081MB.html?Color=9842",
+      "Volcano": "https://www.canadagoose.com/ca/en/pr/garson-vest-black-disc-2081MB.html?Color=9782"
+    }
+  },
+  "canada-goose-langford-parka-men": {
+    "byColor": {
+      "Classic Disc / Atlantic Navy": "https://www.canadagoose.com/ca/en/pr/langford-parka-2052M.html",
+      "Classic Disc / Black": "https://www.canadagoose.com/ca/en/pr/langford-parka-2052M.html?Color=9061",
+      "Classic Disc / Limestone": "https://www.canadagoose.com/ca/en/pr/langford-parka-2052M.html?Color=432",
+      "Classic Disc / Oxford Navy": "https://www.canadagoose.com/ca/en/pr/langford-parka-2052M.html?Color=9841",
+      "Tonal Disc / Vireo Green": "https://www.canadagoose.com/ca/en/pr/langford-parka-tonal-disc-2052MT.html",
+      "Black Disc / Black": "https://www.canadagoose.com/ca/en/pr/langford-parka-black-disc-2052MB.html?Color=9061",
+      "Black Disc / Limestone": "https://www.canadagoose.com/ca/en/pr/langford-parka-black-disc-2052MB.html?Color=9432",
+      "Black Disc / North Star White": "https://www.canadagoose.com/ca/en/pr/langford-parka-black-disc-2052MB.html?Color=433",
+      "Black Disc / Ozone Blue": "https://www.canadagoose.com/ca/en/pr/langford-parka-black-disc-2052MB.html"
+    }
+  },
+  "canada-goose-lodge-hoodie-men": {
+    "byColor": {
+      "Black Disc / Black": "https://www.canadagoose.com/ca/en/pr/lodge-hoodie-black-disc-5078MB.html?Color=9061",
+      "Black Disc / Desert Sand": "https://www.canadagoose.com/ca/en/pr/lodge-hoodie-black-disc-5078MB.html?Color=1483",
+      "Black Disc / Stratus Grey": "https://www.canadagoose.com/ca/en/pr/lodge-hoodie-black-disc-5078MB.html?Color=9838",
+      "Classic Disc / Atlantic Navy": "https://www.canadagoose.com/ca/en/pr/lodge-hoodie-5078M.html",
+      "Classic Disc / Black": "https://www.canadagoose.com/ca/en/pr/lodge-hoodie-5078M.html?Color=9061",
+      "Classic Disc / Carmine Red": "https://www.canadagoose.com/ca/en/pr/lodge-hoodie-5078M.html?Color=9839",
+      "Classic Disc / Military Tan": "https://www.canadagoose.com/ca/en/pr/lodge-hoodie-5078M.html?Color=9113"
+    }
+  },
+  "canada-goose-macmillan-parka-men": {
+    "byColor": {
+      "Black Disc / Black": "https://www.canadagoose.com/ca/en/pr/macmillan-parka-black-disc-2080MB.html",
+      "Black Disc / North Star White": "https://www.canadagoose.com/ca/en/pr/macmillan-parka-black-disc-2080MB.html?Color=433",
+      "Classic Disc / Atlantic Navy": "https://www.canadagoose.com/ca/en/pr/macmillan-parka-2080M.html?Color=9063",
+      "Classic Disc / Black": "https://www.canadagoose.com/ca/en/pr/macmillan-parka-2080M.html?Color=9061",
+      "Classic Disc / Granite Grey": "https://www.canadagoose.com/ca/en/pr/macmillan-parka-2080M.html?Color=9431",
+      "Classic Disc / Limestone": "https://www.canadagoose.com/ca/en/pr/macmillan-parka-2080M.html?Color=9432"
+    }
+  },
+  "canada-goose-murray-parka-men": {
+    "byColor": {
+      "Black": "https://www.canadagoose.com/ca/en/pr/murray-parka-1741M.html?Color=9061",
+      "Military Tan": "https://www.canadagoose.com/ca/en/pr/murray-parka-1741M.html",
+      "Nocturne": "https://www.canadagoose.com/ca/en/pr/murray-parka-1741M.html?Color=9858"
+    }
+  },
+  "canada-goose-wyndham-parka-men": {
+    "byColor": {
+      "Black Disc / Black": "https://www.canadagoose.com/ca/en/pr/wyndham-parka-black-disc-2048MB.html?Color=9061",
+      "Black Disc / Dusk Blue": "https://www.canadagoose.com/ca/en/pr/wyndham-parka-black-disc-2048MB.html?Color=9128",
+      "Black Disc / Limestone": "https://www.canadagoose.com/ca/en/pr/wyndham-parka-black-disc-2048MB.html?Color=432",
+      "Black Disc / North Star White": "https://www.canadagoose.com/ca/en/pr/wyndham-parka-black-disc-2048MB.html?Color=9433",
+      "Classic Disc / Atlantic Navy": "https://www.canadagoose.com/ca/en/pr/wyndham-parka-2048M.html?Color=9063",
+      "Classic Disc / Black": "https://www.canadagoose.com/ca/en/pr/wyndham-parka-2048M.html?Color=9061",
+      "Classic Disc / Granite Grey": "https://www.canadagoose.com/ca/en/pr/wyndham-parka-black-disc-2048MB.html?Color=9128",
+      "Classic Disc / Limestone": "https://www.canadagoose.com/ca/en/pr/wyndham-parka-2048M.html?Color=9432"
+    }
+  },
+  "polo-cable-knit-cotton-crewneck-cardigan-women": {
+    "url": "https://www.ralphlauren.ca/women-clothing-sweaters/cable-knit-cotton-crewneck-cardigan/638619.html"
+  },
+  "arcteryx-sabre-sv-jacket-men": {
+    "url": "https://outlet.arcteryx.com/ca/en/shop/mens/sabre-sv-jacket-9910"
+  },
+  "arcteryx-alpha-sl-jacket-men": {
+    "url": "https://outlet.arcteryx.com/ca/en/shop/mens/alpha-sl-jacket-0287"
+  },
+  "arcteryx-ralle-down-parka-men": {
+    "url": "https://outlet.arcteryx.com/ca/en/shop/mens/ralle-down-parka-9156"
+  },
+  "arcteryx-beta-insulated-jacket-men": {
+    "url": "https://outlet.arcteryx.com/ca/en/shop/mens/beta-insulated-jacket-0510"
+  },
+  "arcteryx-therme-down-parka-men": {
+    "url": "https://outlet.arcteryx.com/ca/en/shop/mens/therme-down-parka-9914"
+  },
+  "arcteryx-alpha-sv-jacket-outlet-men": {
+    "url": "https://outlet.arcteryx.com/ca/en/shop/mens/alpha-sv-jacket-9989"
+  },
+  "arcteryx-beta-sl-jacket-outlet-men": {
+    "url": "https://outlet.arcteryx.com/ca/en/shop/mens/beta-sl-jacket-0553"
+  },
+  "arcteryx-beta-ar-jacket-men": {
+    "byColor": {
+      "Stone Red Dk Stone": "https://outlet.arcteryx.com/ca/en/shop/mens/beta-ar-jacket-9906",
+      "Olive Moss Euphoria": "https://outlet.arcteryx.com/ca/en/shop/mens/beta-ar-jacket-9906",
+      "Fluidity Vitality": "https://outlet.arcteryx.com/ca/en/shop/mens/beta-ar-jacket-9906",
+      "Mantis Tatsu": "https://outlet.arcteryx.com/ca/en/shop/mens/beta-ar-jacket-9906"
+    }
+  }
+}

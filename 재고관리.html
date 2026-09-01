@@ -1,0 +1,904 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RICKY 재고 수집 관리</title>
+<style>
+:root{
+  --ink:#000000; --paper:#ffffff;
+  --muted:#5d5d5d;                 /* 읽혀야 하는 보조 텍스트 */
+  --decor:rgba(93,93,93,0.64);     /* 놓쳐도 되는 것 — 정보를 싣지 않는다 */
+  --line:#c4c4c4;                  /* 라벨이 함께 있는 컨트롤 */
+  --line-strong:#949494;           /* 보더가 없으면 컨트롤인지 알 수 없는 곳 */
+  --alert:#e8005d;
+}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);margin:0;
+  font-family:"Pretendard Variable",Pretendard,ui-sans-serif,system-ui,sans-serif;
+  font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:48px 24px 96px}
+h1{font-size:clamp(30px,2.6vw,48px);font-weight:700;line-height:1.13;margin:0 0 8px}
+h2{font-size:clamp(22px,1.5vw,28px);font-weight:700;line-height:1.36;margin:56px 0 4px}
+.sub{color:var(--muted);font-size:14px;margin:0 0 4px}
+.hint{color:var(--muted);font-size:13px;line-height:1.4;margin:0 0 20px}
+
+/* 요약 — 숫자는 tabular-nums 로 자리를 고정한다 */
+.stats{display:flex;flex-wrap:wrap;gap:40px;margin:32px 0 8px;
+  border-top:1px solid var(--line);padding-top:24px}
+.stat b{display:block;font-size:30px;font-weight:700;line-height:1.13;
+  font-variant-numeric:tabular-nums}
+.stat span{font-size:13px;color:var(--muted)}
+.stat.alarm b{color:var(--alert)}
+
+/* 반전 칩 — 색이 아니라 반전으로 주의를 끈다 */
+.chip{display:inline-block;background:var(--ink);color:var(--paper);
+  font-size:12px;font-weight:700;border-radius:2px;padding:2px 7px;
+  font-variant-numeric:tabular-nums}
+.chip.quiet{background:transparent;color:var(--muted);border:1px solid var(--line);font-weight:400}
+
+/* 주소 칸이 가장 넓어야 한다 — 이 표에서 사람이 고치는 건 주소뿐이다 */
+table{border-collapse:collapse;width:100%;font-size:14px;margin-top:16px;table-layout:fixed}
+col.c-brand{width:118px} col.c-name{width:26%} col.c-when{width:96px} col.c-stock{width:64px}
+th{text-align:left;font-size:13px;font-weight:400;color:var(--muted);
+  border-bottom:1px solid var(--ink);padding:0 10px 8px}
+td{border-bottom:1px solid #ebebeb;padding:11px 10px;vertical-align:top}
+tbody tr.miss td{border-bottom-color:var(--line)}
+.name{font-weight:700}
+.meta{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+.warn{color:var(--alert);font-weight:700;font-size:12px}
+
+input[type=url]{width:100%;font:inherit;font-size:13px;padding:7px 9px;
+  border:1px solid var(--line-strong);border-radius:0;background:var(--paper);color:var(--ink)}
+input[type=url]:focus{outline:2px solid var(--ink);outline-offset:-1px}
+input.dirty{border-color:var(--ink);border-width:2px}
+
+button{font:inherit;cursor:pointer}
+/* 요소에 묶는다 — 클래스만으로 두면 칩 같은 다른 요소가 조용히 물려받는다(실측) */
+button.ghost{font-size:15px;font-weight:700;background:var(--paper);color:var(--ink);
+  border:1px solid var(--line);border-radius:4px;padding:11px 22px}
+button.solid{font-size:15px;font-weight:400;background:var(--ink);color:var(--paper);
+  border:1px solid var(--ink);border-radius:2px;padding:12px 22px}
+button:disabled{opacity:0.4;cursor:default}   /* 보더 색은 바꾸지 않는다 */
+
+.drag{display:inline-block;background:var(--ink);color:var(--paper);text-decoration:none;
+  font-size:15px;font-weight:400;border-radius:2px;padding:12px 22px;cursor:grab}
+.drag:active{cursor:grabbing}
+
+pre{background:var(--paper);border:1px solid var(--line);border-radius:0;
+  padding:16px;font-size:13px;line-height:1.5;overflow:auto;max-height:340px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;
+  word-break:break-all;margin:12px 0}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:16px 0}
+details{margin-top:8px}
+summary{cursor:pointer;font-size:13px;color:var(--muted)}
+details[open] summary{margin-bottom:8px}
+.colour{display:grid;grid-template-columns:190px 1fr;gap:8px;align-items:center;margin:6px 0}
+.colour span{font-size:13px;color:var(--muted)}
+.steps{padding-left:20px;margin:8px 0 0}
+.steps li{margin:8px 0;font-size:14px}
+@media(max-width:820px){
+  colgroup{display:none}
+  .wrap{padding:32px 20px 72px}
+  .stats{gap:24px}
+  table,thead,tbody,th,td,tr{display:block}
+  thead{display:none}
+  td{border:none;padding:3px 0}
+  tbody tr{border-bottom:1px solid var(--line);padding:14px 0}
+  .colour{grid-template-columns:1fr}
+}
+</style></head><body><div class="wrap">
+
+<h1>재고 수집 관리</h1>
+<p class="sub">공식몰 주소를 넣고, 무엇이 수집되고 무엇이 빠지는지 본다.</p>
+<p class="hint">2026. 9. 1. 오전 12:14:26 기준 · 수집 20260901054231 · 카탈로그가 바뀌면 <code>npm run manage</code> 로 다시 만든다</p>
+
+<div class="stats">
+  <div class="stat"><b>70</b><span>등록 상품</span></div>
+  <div class="stat"><b>70</b><span>수집 페이지</span></div>
+  <div class="stat alarm"><b>7</b><span>주소 없음</span></div>
+  <div class="stat"><b>39</b><span>6시간 지남</span></div>
+</div>
+
+<h2>상품</h2>
+<p class="hint">주소가 없는 상품이 맨 위에 온다. 칸을 고치면 아래에 붙여 넣을 JSON 이 만들어진다.</p>
+<table>
+  <colgroup><col class="c-brand"><col class="c-name"><col><col class="c-when"><col class="c-stock"></colgroup>
+  <thead><tr>
+    <th>브랜드</th><th>상품</th><th>공식몰 주소</th><th>마지막 확인</th><th>재고</th>
+  </tr></thead>
+  <tbody><tr class="miss">
+  <td class="meta">캐나다구스 <span class="chip quiet">확장</span></td>
+  <td><div class="name">Crofton Hoodie</div>
+      <div class="meta">canada-goose-crofton-hoodie-kids · 5460K</div></td>
+  <td><div class="warn">공식몰 주소 없음 — 이 상품은 수집되지 않는다</div>
+      <input type="url" data-slug="canada-goose-crofton-hoodie-kids" value="" placeholder="https://…">
+      </td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="miss">
+  <td class="meta">캐나다구스 <span class="chip quiet">확장</span></td>
+  <td><div class="name">Kids Snowy Owl Parka</div>
+      <div class="meta">canada-goose-kids-snowy-owl-parka · 4576K</div></td>
+  <td><div class="warn">공식몰 주소 없음 — 이 상품은 수집되지 않는다</div>
+      <input type="url" data-slug="canada-goose-kids-snowy-owl-parka" value="" placeholder="https://…">
+      </td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="miss">
+  <td class="meta">캐나다구스 <span class="chip quiet">확장</span></td>
+  <td><div class="name">Kids Vanier Vest</div>
+      <div class="meta">canada-goose-kids-vanier-vest · 4554K</div></td>
+  <td><div class="warn">공식몰 주소 없음 — 이 상품은 수집되지 않는다</div>
+      <input type="url" data-slug="canada-goose-kids-vanier-vest" value="" placeholder="https://…">
+      </td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="miss">
+  <td class="meta">캐나다구스 <span class="chip quiet">확장</span></td>
+  <td><div class="name">Youth Expedition Parka</div>
+      <div class="meta">canada-goose-youth-expedition-parka · 4552Y</div></td>
+  <td><div class="warn">공식몰 주소 없음 — 이 상품은 수집되지 않는다</div>
+      <input type="url" data-slug="canada-goose-youth-expedition-parka" value="" placeholder="https://…">
+      </td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="miss">
+  <td class="meta">캐나다구스 <span class="chip quiet">확장</span></td>
+  <td><div class="name">Youth Juniper Parka</div>
+      <div class="meta">canada-goose-youth-juniper-parka · 4559Y</div></td>
+  <td><div class="warn">공식몰 주소 없음 — 이 상품은 수집되지 않는다</div>
+      <input type="url" data-slug="canada-goose-youth-juniper-parka" value="" placeholder="https://…">
+      </td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="miss">
+  <td class="meta">캐나다구스 <span class="chip quiet">확장</span></td>
+  <td><div class="name">Youth Logan Parka</div>
+      <div class="meta">canada-goose-youth-logan-parka · 4557Y</div></td>
+  <td><div class="warn">공식몰 주소 없음 — 이 상품은 수집되지 않는다</div>
+      <input type="url" data-slug="canada-goose-youth-logan-parka" value="" placeholder="https://…">
+      </td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="miss">
+  <td class="meta">캐나다구스 <span class="chip quiet">확장</span></td>
+  <td><div class="name">Youth Vanier Vest</div>
+      <div class="meta">canada-goose-youth-vanier-vest · 4554Y</div></td>
+  <td><div class="warn">공식몰 주소 없음 — 이 상품은 수집되지 않는다</div>
+      <input type="url" data-slug="canada-goose-youth-vanier-vest" value="" placeholder="https://…">
+      </td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">룰루레몬 <span class="chip quiet">확장</span></td>
+  <td><div class="name">Extra Large Claw Hair Clip</div>
+      <div class="meta">lululemon-extra-large-claw-hair-clip-women</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="lululemon-extra-large-claw-hair-clip-women" value="https://shop.lululemon.com/en-ca/p/hair-accessories/Extra-Large-Claw-Hair-Clip/_/prod11440065" placeholder="https://…">
+      </td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">룰루레몬 <span class="chip quiet">확장</span></td>
+  <td><div class="name">Fast and Free Trail Running Vest</div>
+      <div class="meta">lululemon-fast-and-free-trail-running-vest-men</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="lululemon-fast-and-free-trail-running-vest-men" value="https://shop.lululemon.com/en-ca/p/equipment/Mens-Fast-and-Free-Trail-Running-Vest/_/prod11890040" placeholder="https://…">
+      </td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">룰루레몬 <span class="chip quiet">확장</span></td>
+  <td><div class="name">Fast and Free Trail Running Vest</div>
+      <div class="meta">lululemon-fast-and-free-trail-running-vest-women</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="lululemon-fast-and-free-trail-running-vest-women" value="https://shop.lululemon.com/en-ca/p/equipment/Womens-Fast-and-Free-Trail-Running-Vest/_/prod11890062" placeholder="https://…">
+      </td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">룰루레몬 <span class="chip quiet">확장</span></td>
+  <td><div class="name">Jumbo Claw Clip</div>
+      <div class="meta">lululemon-jumbo-claw-clip-women</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="lululemon-jumbo-claw-clip-women" value="https://shop.lululemon.com/en-ca/p/hair-accessories/Jumbo-Claw-Clip/_/prod11870457" placeholder="https://…">
+      </td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">아크테릭스</td>
+  <td><div class="name">Alpha Jacket</div>
+      <div class="meta">arcteryx-alpha-jacket-men · X000010932</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="arcteryx-alpha-jacket-men" value="https://arcteryx.com/ca/en/shop/mens/alpha-jacket-0932" placeholder="https://…">
+      </td>
+  <td class="num meta" title="2026-09-01T05:41:18.711Z">방금</td>
+  <td class="num">6/6</td>
+</tr>
+<tr class="">
+  <td class="meta">아크테릭스</td>
+  <td><div class="name">Alpha SL Jacket</div>
+      <div class="meta">arcteryx-alpha-sl-jacket-men · X000010287</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="arcteryx-alpha-sl-jacket-men" value="https://outlet.arcteryx.com/ca/en/shop/mens/alpha-sl-jacket-0287" placeholder="https://…">
+      </td>
+  <td class="num meta" title="2026-09-01T05:41:18.711Z">방금</td>
+  <td class="num">6/12</td>
+</tr>
+<tr class="">
+  <td class="meta">아크테릭스</td>
+  <td><div class="name">Alpha SV Jacket</div>
+      <div class="meta">arcteryx-alpha-sv-jacket-men · X000009899</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="arcteryx-alpha-sv-jacket-men" value="https://arcteryx.com/ca/en/shop/mens/alpha-sv-jacket-9899" placeholder="https://…">
+      </td>
+  <td class="num meta" title="2026-09-01T05:41:18.711Z">방금</td>
+  <td class="num">6/6</td>
+</tr>
+<tr class="">
+  <td class="meta">아크테릭스</td>
+  <td><div class="name">Alpha SV Jacket (아울렛)</div>
+      <div class="meta">arcteryx-alpha-sv-jacket-outlet-men · X000009989</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="arcteryx-alpha-sv-jacket-outlet-men" value="https://outlet.arcteryx.com/ca/en/shop/mens/alpha-sv-jacket-9989" placeholder="https://…">
+      </td>
+  <td class="num meta" title="2026-09-01T05:41:18.711Z">방금</td>
+  <td class="num">4/6</td>
+</tr>
+<tr class="">
+  <td class="meta">아크테릭스</td>
+  <td><div class="name">Altira Cropped Jacket</div>
+      <div class="meta">arcteryx-altira-cropped-jacket-women · X000010094</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="arcteryx-altira-cropped-jacket-women" value="https://arcteryx.com/ca/en/shop/womens/altira-cropped-jacket-0094" placeholder="https://…">
+      </td>
+  <td class="num meta" title="2026-09-01T05:41:18.711Z">방금</td>
+  <td class="num">6/7</td>
+</tr>
+<tr class="">
+  <td class="meta">아크테릭스</td>
+  <td><div class="name">Atom Hoody</div>
+      <div class="meta">arcteryx-atom-hoody-men · X000009556</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="arcteryx-atom-hoody-men" value="https://arcteryx.com/ca/en/shop/mens/atom-hoody-9556" placeholder="https://…">
+      </td>
+  <td class="num meta" title="2026-09-01T05:41:18.711Z">방금</td>
+  <td class="num">7/7</td>
+</tr>
+<tr class="">
+  <td class="meta">아크테릭스</td>
+  <td><div class="name">Atom Jacket</div>
+      <div class="meta">arcteryx-atom-jacket-men · X000009561</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="arcteryx-atom-jacket-men" value="https://arcteryx.com/ca/en/shop/mens/atom-jacket-9561" placeholder="https://…">
+      </td>
+  <td class="num meta" title="2026-09-01T05:41:18.711Z">방금</td>
+  <td class="num">6/6</td>
+</tr>
+<tr class="">
+  <td class="meta">아크테릭스</td>
+  <td><div class="name">Atom Jacket</div>
+      <div class="meta">arcteryx-atom-jacket-women · X000009855</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="arcteryx-atom-jacket-women" value="https://arcteryx.com/ca/en/shop/womens/atom-jacket-9855" placeholder="https://…">
+      </td>
+  <td class="num meta" title="2026-09-01T05:41:18.711Z">방금</td>
+  <td class="num">9/14</td>
+</tr>
+<tr class="">
+  <td class="meta">아크테릭스</td>
+  <td><div class="name">Atom SL Hoody</div>
+      <div class="meta">arcteryx-atom-sl-hoody-women · X000009511</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="arcteryx-atom-sl-hoody-women" value="https://arcteryx.com/ca/en/shop/womens/atom-sl-hoody-9511" placeholder="https://…">
+      </td>
+  <td class="num meta" title="2026-09-01T05:41:18.711Z">방금</td>
+  <td class="num">19/28</td>
+</tr>
+<tr class="">
+  <td class="meta">아크테릭스</td>
+  <td><div class="name">Beta AR Jacket</div>
+      <div class="meta">arcteryx-beta-ar-jacket-men · X000009906 X000011062</div></td>
+  <td><div class="meta">2개 페이지</div>
+      <input type="url" data-slug="arcteryx-beta-ar-jacket-men" value="https://arcteryx.com/ca/en/shop/mens/beta-ar-jacket-1062" placeholder="https://…">
+      <details><summary>색상별 주소 6개</summary><div class="colour"><span>Olive Moss Euphoria</span><input type="url" data-slug="arcteryx-beta-ar-jacket-men" data-color="Olive Moss Euphoria" value="https://outlet.arcteryx.com/ca/en/shop/mens/beta-ar-jacket-9906" placeholder="https://…"></div><div class="colour"><span>블랙</span><input type="url" data-slug="arcteryx-beta-ar-jacket-men" data-color="Black" value="" placeholder="https://…"></div><div class="colour"><span>클라우드 보이드</span><input type="url" data-slug="arcteryx-beta-ar-jacket-men" data-color="Cloud Void" value="" placeholder="https://…"></div><div class="colour"><span>Fluidity Vitality</span><input type="url" data-slug="arcteryx-beta-ar-jacket-men" data-color="Fluidity Vitality" value="https://outlet.arcteryx.com/ca/en/shop/mens/beta-ar-jacket-9906" placeholder="https://…"></div><div class="colour"><span>Mantis Tatsu</span><input type="url" data-slug="arcteryx-beta-ar-jacket-men" data-color="Mantis Tatsu" value="https://outlet.arcteryx.com/ca/en/shop/mens/beta-ar-jacket-9906" placeholder="https://…"></div><div class="colour"><span>Stone Red Dk Stone</span><input type="url" data-slug="arcteryx-beta-ar-jacket-men" data-color="Stone Red Dk Stone" value="https://outlet.arcteryx.com/ca/en/shop/mens/beta-ar-jacket-9906" placeholder="https://…"></div></details></td>
+  <td class="num meta" title="2026-09-01T05:41:18.711Z">방금</td>
+  <td class="num">25/42</td>
+</tr>
+<tr class="">
+  <td class="meta">아크테릭스</td>
+  <td><div class="name">Beta AR Jacket</div>
+      <div class="meta">arcteryx-beta-ar-jacket-women · X000009863</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="arcteryx-beta-ar-jacket-women" value="https://arcteryx.com/ca/en/shop/womens/beta-ar-jacket-9863" placeholder="https://…">
+      </td>
+  <td class="num meta" title="2026-09-01T05:41:18.711Z">방금</td>
+  <td class="num">7/7</td>
+</tr>
+<tr class="">
+  <td class="meta">아크테릭스</td>
+  <td><div class="name">Beta Insulated Jacket</div>
+      <div class="meta">arcteryx-beta-insulated-jacket-men · X000010510</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="arcteryx-beta-insulated-jacket-men" value="https://outlet.arcteryx.com/ca/en/shop/mens/beta-insulated-jacket-0510" placeholder="https://…">
+      </td>
+  <td class="num meta" title="2026-09-01T05:41:18.711Z">방금</td>
+  <td class="num">9/18</td>
+</tr>
+<tr class="">
+  <td class="meta">아크테릭스</td>
+  <td><div class="name">Beta Jacket</div>
+      <div class="meta">arcteryx-beta-jacket-men · X000010878 X000010511</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="arcteryx-beta-jacket-men" value="https://arcteryx.com/ca/en/shop/mens/beta-jacket-0868" placeholder="https://…">
+      </td>
+  <td class="num meta" title="2026-09-01T05:41:18.711Z">방금</td>
+  <td class="num">14/14</td>
+</tr>
+<tr class="">
+  <td class="meta">아크테릭스</td>
+  <td><div class="name">Beta SL Jacket</div>
+      <div class="meta">arcteryx-beta-sl-jacket-men · X000010854</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="arcteryx-beta-sl-jacket-men" value="https://arcteryx.com/ca/en/shop/mens/beta-sl-jacket-0854" placeholder="https://…">
+      </td>
+  <td class="num meta" title="2026-09-01T05:41:18.711Z">방금</td>
+  <td class="num">11/12</td>
+</tr>
+<tr class="">
+  <td class="meta">아크테릭스</td>
+  <td><div class="name">Beta SL Jacket (아울렛)</div>
+      <div class="meta">arcteryx-beta-sl-jacket-outlet-men · X000010553</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="arcteryx-beta-sl-jacket-outlet-men" value="https://outlet.arcteryx.com/ca/en/shop/mens/beta-sl-jacket-0553" placeholder="https://…">
+      </td>
+  <td class="num meta" title="2026-09-01T05:41:18.711Z">방금</td>
+  <td class="num">13/24</td>
+</tr>
+<tr class="">
+  <td class="meta">아크테릭스</td>
+  <td><div class="name">Clarkia AR Insulated Hoody</div>
+      <div class="meta">arcteryx-clarkia-ar-insulated-hoody-women · X000010746</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="arcteryx-clarkia-ar-insulated-hoody-women" value="https://arcteryx.com/ca/en/shop/womens/clarkia-ar-insulated-hoody-0746" placeholder="https://…">
+      </td>
+  <td class="num meta" title="2026-09-01T05:41:18.711Z">방금</td>
+  <td class="num">9/14</td>
+</tr>
+<tr class="">
+  <td class="meta">아크테릭스</td>
+  <td><div class="name">Coelle Jacket</div>
+      <div class="meta">arcteryx-coelle-jacket-women · X000009466</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="arcteryx-coelle-jacket-women" value="https://arcteryx.com/ca/en/shop/womens/coelle-jacket-9466" placeholder="https://…">
+      </td>
+  <td class="num meta" title="2026-09-01T05:41:18.711Z">방금</td>
+  <td class="num">7/14</td>
+</tr>
+<tr class="">
+  <td class="meta">아크테릭스</td>
+  <td><div class="name">Elec Insulated Jacket</div>
+      <div class="meta">arcteryx-elec-insulated-jacket-women · X000009512</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="arcteryx-elec-insulated-jacket-women" value="https://arcteryx.com/ca/en/shop/womens/elec-insulated-jacket-9512" placeholder="https://…">
+      </td>
+  <td class="num meta" title="2026-09-01T05:41:18.711Z">방금</td>
+  <td class="num">7/7</td>
+</tr>
+<tr class="">
+  <td class="meta">아크테릭스</td>
+  <td><div class="name">Gamma Lightweight Hoody</div>
+      <div class="meta">arcteryx-gamma-lightweight-hoody-men · X000010606</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="arcteryx-gamma-lightweight-hoody-men" value="https://arcteryx.com/ca/en/shop/mens/gamma-lightweight-hoody-0606" placeholder="https://…">
+      </td>
+  <td class="num meta" title="2026-09-01T05:41:18.711Z">방금</td>
+  <td class="num">12/12</td>
+</tr>
+<tr class="">
+  <td class="meta">아크테릭스</td>
+  <td><div class="name">Gamma Lightweight Hoody</div>
+      <div class="meta">arcteryx-gamma-lightweight-hoody-women · X000010924</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="arcteryx-gamma-lightweight-hoody-women" value="https://arcteryx.com/ca/en/shop/womens/gamma-lightweight-hoody-0924" placeholder="https://…">
+      </td>
+  <td class="num meta" title="2026-09-01T05:41:18.711Z">방금</td>
+  <td class="num">13/14</td>
+</tr>
+<tr class="">
+  <td class="meta">아크테릭스</td>
+  <td><div class="name">Gamma MX Hoody</div>
+      <div class="meta">arcteryx-gamma-mx-hoody-women · X000009456</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="arcteryx-gamma-mx-hoody-women" value="https://arcteryx.com/ca/en/shop/womens/gamma-mx-hoody-9456" placeholder="https://…">
+      </td>
+  <td class="num meta" title="2026-09-01T05:41:18.711Z">방금</td>
+  <td class="num">12/14</td>
+</tr>
+<tr class="">
+  <td class="meta">아크테릭스</td>
+  <td><div class="name">Naya Cropped Jacket</div>
+      <div class="meta">arcteryx-naya-cropped-jacket-women · X000010327</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="arcteryx-naya-cropped-jacket-women" value="https://arcteryx.com/ca/en/shop/womens/naya-cropped-jacket-0327" placeholder="https://…">
+      </td>
+  <td class="num meta" title="2026-09-01T05:41:18.711Z">방금</td>
+  <td class="num">7/7</td>
+</tr>
+<tr class="">
+  <td class="meta">아크테릭스</td>
+  <td><div class="name">Naya Cropped Stowhood Jacket</div>
+      <div class="meta">arcteryx-naya-cropped-stowhood-jacket-women · X000010263</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="arcteryx-naya-cropped-stowhood-jacket-women" value="https://arcteryx.com/ca/en/shop/womens/naya-cropped-stowhood-jacket-0263" placeholder="https://…">
+      </td>
+  <td class="num meta" title="2026-09-01T05:41:18.711Z">방금</td>
+  <td class="num">6/14</td>
+</tr>
+<tr class="">
+  <td class="meta">아크테릭스</td>
+  <td><div class="name">Proton SL Hoody</div>
+      <div class="meta">arcteryx-proton-sl-hoody-men · X000009557</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="arcteryx-proton-sl-hoody-men" value="https://arcteryx.com/ca/en/shop/mens/proton-sl-hoody-9557" placeholder="https://…">
+      </td>
+  <td class="num meta" title="2026-09-01T05:41:18.711Z">방금</td>
+  <td class="num">11/12</td>
+</tr>
+<tr class="">
+  <td class="meta">아크테릭스</td>
+  <td><div class="name">Ralle Down Parka</div>
+      <div class="meta">arcteryx-ralle-down-parka-men · X000009156</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="arcteryx-ralle-down-parka-men" value="https://outlet.arcteryx.com/ca/en/shop/mens/ralle-down-parka-9156" placeholder="https://…">
+      </td>
+  <td class="num meta" title="2026-09-01T05:41:18.711Z">방금</td>
+  <td class="num">2/6</td>
+</tr>
+<tr class="">
+  <td class="meta">아크테릭스</td>
+  <td><div class="name">Sabre SV Jacket</div>
+      <div class="meta">arcteryx-sabre-sv-jacket-men · X000009910</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="arcteryx-sabre-sv-jacket-men" value="https://outlet.arcteryx.com/ca/en/shop/mens/sabre-sv-jacket-9910" placeholder="https://…">
+      </td>
+  <td class="num meta" title="2026-09-01T05:41:18.711Z">방금</td>
+  <td class="num">2/6</td>
+</tr>
+<tr class="">
+  <td class="meta">아크테릭스</td>
+  <td><div class="name">Sentinel Jacket</div>
+      <div class="meta">arcteryx-sentinel-jacket-women · X000010539</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="arcteryx-sentinel-jacket-women" value="https://arcteryx.com/ca/en/shop/womens/sentinel-jacket-0539" placeholder="https://…">
+      </td>
+  <td class="num meta" title="2026-09-01T05:41:18.711Z">방금</td>
+  <td class="num">7/7</td>
+</tr>
+<tr class="">
+  <td class="meta">아크테릭스</td>
+  <td><div class="name">Serratus Hoody</div>
+      <div class="meta">arcteryx-serratus-hoody-men · X000010941</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="arcteryx-serratus-hoody-men" value="https://arcteryx.com/ca/en/shop/mens/serratus-hoody-0941" placeholder="https://…">
+      </td>
+  <td class="num meta" title="2026-09-01T05:41:18.711Z">방금</td>
+  <td class="num">6/6</td>
+</tr>
+<tr class="">
+  <td class="meta">아크테릭스</td>
+  <td><div class="name">Squamish Hoody</div>
+      <div class="meta">arcteryx-squamish-hoody-men · X000010276</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="arcteryx-squamish-hoody-men" value="https://arcteryx.com/ca/en/shop/mens/squamish-hoody-0276" placeholder="https://…">
+      </td>
+  <td class="num meta" title="2026-09-01T05:41:18.711Z">방금</td>
+  <td class="num">11/12</td>
+</tr>
+<tr class="">
+  <td class="meta">아크테릭스</td>
+  <td><div class="name">Squamish Hoody</div>
+      <div class="meta">arcteryx-squamish-hoody-women · X000010268</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="arcteryx-squamish-hoody-women" value="https://arcteryx.com/ca/en/shop/womens/squamish-hoody-0268" placeholder="https://…">
+      </td>
+  <td class="num meta" title="2026-09-01T05:41:18.711Z">방금</td>
+  <td class="num">19/28</td>
+</tr>
+<tr class="">
+  <td class="meta">아크테릭스</td>
+  <td><div class="name">Therme Down Parka</div>
+      <div class="meta">arcteryx-therme-down-parka-men · X000009914</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="arcteryx-therme-down-parka-men" value="https://outlet.arcteryx.com/ca/en/shop/mens/therme-down-parka-9914" placeholder="https://…">
+      </td>
+  <td class="num meta" title="2026-09-01T05:41:18.711Z">방금</td>
+  <td class="num">2/6</td>
+</tr>
+<tr class="">
+  <td class="meta">캐나다구스 <span class="chip quiet">확장</span></td>
+  <td><div class="name">Crofton EnduraLuxe Vest</div>
+      <div class="meta">canada-goose-crofton-enduraluxe-vest-men · 1925MB</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="canada-goose-crofton-enduraluxe-vest-men" value="https://www.canadagoose.com/ca/en/pr/crofton-enduraluxe-vest-1925MB.html?Color=9061" placeholder="https://…">
+      <details><summary>색상별 주소 2개</summary><div class="colour"><span>블랙</span><input type="url" data-slug="canada-goose-crofton-enduraluxe-vest-men" data-color="Black" value="https://www.canadagoose.com/ca/en/pr/crofton-enduraluxe-vest-1925MB.html?Color=9061" placeholder="https://…"></div><div class="colour"><span>라임스톤</span><input type="url" data-slug="canada-goose-crofton-enduraluxe-vest-men" data-color="Limestone" value="https://www.canadagoose.com/ca/en/pr/crofton-enduraluxe-vest-1925MB.html?Color=9432" placeholder="https://…"></div></details></td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">캐나다구스 <span class="chip quiet">확장</span></td>
+  <td><div class="name">Freestyle Crew Vest</div>
+      <div class="meta">canada-goose-freestyle-crew-vest-men · 4159MB 2054M</div></td>
+  <td><div class="meta">2개 페이지</div>
+      <input type="url" data-slug="canada-goose-freestyle-crew-vest-men" value="https://www.canadagoose.com/ca/en/pr/freestyle-crew-vest-black-disc-4159MB.html" placeholder="https://…">
+      <details><summary>색상별 주소 6개</summary><div class="colour"><span>블랙 디스크 / 노스 스타 화이트</span><input type="url" data-slug="canada-goose-freestyle-crew-vest-men" data-color="Black Disc / North Star White" value="https://www.canadagoose.com/ca/en/pr/freestyle-crew-vest-black-disc-4159MB.html" placeholder="https://…"></div><div class="colour"><span>클래식 디스크 / 애틀랜틱 네이비</span><input type="url" data-slug="canada-goose-freestyle-crew-vest-men" data-color="Classic Disc / Atlantic Navy" value="https://www.canadagoose.com/ca/en/pr/freestyle-crew-vest-2054M.html?Color=63" placeholder="https://…"></div><div class="colour"><span>클래식 디스크 / 블랙</span><input type="url" data-slug="canada-goose-freestyle-crew-vest-men" data-color="Classic Disc / Black" value="https://www.canadagoose.com/ca/en/pr/freestyle-crew-vest-2054M.html?Color=61" placeholder="https://…"></div><div class="colour"><span>클래식 디스크 / 그래파이트</span><input type="url" data-slug="canada-goose-freestyle-crew-vest-men" data-color="Classic Disc / Graphite" value="https://www.canadagoose.com/ca/en/pr/freestyle-crew-vest-2054M.html?Color=66" placeholder="https://…"></div><div class="colour"><span>클래식 디스크 / 라임스톤</span><input type="url" data-slug="canada-goose-freestyle-crew-vest-men" data-color="Classic Disc / Limestone" value="https://www.canadagoose.com/ca/en/pr/freestyle-crew-vest-2054M.html?Color=432" placeholder="https://…"></div><div class="colour"><span>클래식 디스크 / 세이지브러시</span><input type="url" data-slug="canada-goose-freestyle-crew-vest-men" data-color="Classic Disc / Sagebrush" value="https://www.canadagoose.com/ca/en/pr/freestyle-crew-vest-2054M.html?Color=852" placeholder="https://…"></div></details></td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">캐나다구스 <span class="chip quiet">확장</span></td>
+  <td><div class="name">Garson Vest</div>
+      <div class="meta">canada-goose-garson-vest-men · 2081MB</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="canada-goose-garson-vest-men" value="https://www.canadagoose.com/ca/en/pr/garson-vest-black-disc-2081MB.html?Color=9061" placeholder="https://…">
+      <details><summary>색상별 주소 6개</summary><div class="colour"><span>블랙</span><input type="url" data-slug="canada-goose-garson-vest-men" data-color="Black" value="https://www.canadagoose.com/ca/en/pr/garson-vest-black-disc-2081MB.html?Color=9061" placeholder="https://…"></div><div class="colour"><span>코스탈 그레이</span><input type="url" data-slug="canada-goose-garson-vest-men" data-color="Coastal Grey" value="https://www.canadagoose.com/ca/en/pr/garson-vest-black-disc-2081MB.html?Color=811" placeholder="https://…"></div><div class="colour"><span>노스 스타 화이트</span><input type="url" data-slug="canada-goose-garson-vest-men" data-color="North Star White" value="https://www.canadagoose.com/ca/en/pr/garson-vest-black-disc-2081MB.html?Color=433" placeholder="https://…"></div><div class="colour"><span>토프 그레이</span><input type="url" data-slug="canada-goose-garson-vest-men" data-color="Taupe Grey" value="" placeholder="https://…"></div><div class="colour"><span>테라</span><input type="url" data-slug="canada-goose-garson-vest-men" data-color="Terra" value="https://www.canadagoose.com/ca/en/pr/garson-vest-black-disc-2081MB.html?Color=9842" placeholder="https://…"></div><div class="colour"><span>볼케이노</span><input type="url" data-slug="canada-goose-garson-vest-men" data-color="Volcano" value="https://www.canadagoose.com/ca/en/pr/garson-vest-black-disc-2081MB.html?Color=9782" placeholder="https://…"></div></details></td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">캐나다구스 <span class="chip quiet">확장</span></td>
+  <td><div class="name">Langford Parka</div>
+      <div class="meta">canada-goose-langford-parka-men · 2052M 2052MT 2052MB</div></td>
+  <td><div class="meta">3개 페이지</div>
+      <input type="url" data-slug="canada-goose-langford-parka-men" value="https://www.canadagoose.com/ca/en/pr/langford-parka-2052M.html" placeholder="https://…">
+      <details><summary>색상별 주소 9개</summary><div class="colour"><span>클래식 디스크 / 애틀랜틱 네이비</span><input type="url" data-slug="canada-goose-langford-parka-men" data-color="Classic Disc / Atlantic Navy" value="https://www.canadagoose.com/ca/en/pr/langford-parka-2052M.html" placeholder="https://…"></div><div class="colour"><span>클래식 디스크 / 블랙</span><input type="url" data-slug="canada-goose-langford-parka-men" data-color="Classic Disc / Black" value="https://www.canadagoose.com/ca/en/pr/langford-parka-2052M.html?Color=9061" placeholder="https://…"></div><div class="colour"><span>클래식 디스크 / 라임스톤</span><input type="url" data-slug="canada-goose-langford-parka-men" data-color="Classic Disc / Limestone" value="https://www.canadagoose.com/ca/en/pr/langford-parka-2052M.html?Color=432" placeholder="https://…"></div><div class="colour"><span>클래식 디스크 / 옥스퍼드 네이비</span><input type="url" data-slug="canada-goose-langford-parka-men" data-color="Classic Disc / Oxford Navy" value="https://www.canadagoose.com/ca/en/pr/langford-parka-2052M.html?Color=9841" placeholder="https://…"></div><div class="colour"><span>토널 디스크 / 비레오 그린</span><input type="url" data-slug="canada-goose-langford-parka-men" data-color="Tonal Disc / Vireo Green" value="https://www.canadagoose.com/ca/en/pr/langford-parka-tonal-disc-2052MT.html" placeholder="https://…"></div><div class="colour"><span>블랙 디스크 / 블랙</span><input type="url" data-slug="canada-goose-langford-parka-men" data-color="Black Disc / Black" value="https://www.canadagoose.com/ca/en/pr/langford-parka-black-disc-2052MB.html?Color=9061" placeholder="https://…"></div><div class="colour"><span>블랙 디스크 / 라임스톤</span><input type="url" data-slug="canada-goose-langford-parka-men" data-color="Black Disc / Limestone" value="https://www.canadagoose.com/ca/en/pr/langford-parka-black-disc-2052MB.html?Color=9432" placeholder="https://…"></div><div class="colour"><span>블랙 디스크 / 노스 스타 화이트</span><input type="url" data-slug="canada-goose-langford-parka-men" data-color="Black Disc / North Star White" value="https://www.canadagoose.com/ca/en/pr/langford-parka-black-disc-2052MB.html?Color=433" placeholder="https://…"></div><div class="colour"><span>블랙 디스크 / 오존 블루</span><input type="url" data-slug="canada-goose-langford-parka-men" data-color="Black Disc / Ozone Blue" value="https://www.canadagoose.com/ca/en/pr/langford-parka-black-disc-2052MB.html" placeholder="https://…"></div></details></td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">캐나다구스 <span class="chip quiet">확장</span></td>
+  <td><div class="name">Lodge Hoodie</div>
+      <div class="meta">canada-goose-lodge-hoodie-men · 5078MB 5078M</div></td>
+  <td><div class="meta">2개 페이지</div>
+      <input type="url" data-slug="canada-goose-lodge-hoodie-men" value="https://www.canadagoose.com/ca/en/pr/lodge-hoodie-black-disc-5078MB.html?Color=9061" placeholder="https://…">
+      <details><summary>색상별 주소 7개</summary><div class="colour"><span>블랙 디스크 / 블랙</span><input type="url" data-slug="canada-goose-lodge-hoodie-men" data-color="Black Disc / Black" value="https://www.canadagoose.com/ca/en/pr/lodge-hoodie-black-disc-5078MB.html?Color=9061" placeholder="https://…"></div><div class="colour"><span>블랙 디스크 / Desert Sand</span><input type="url" data-slug="canada-goose-lodge-hoodie-men" data-color="Black Disc / Desert Sand" value="https://www.canadagoose.com/ca/en/pr/lodge-hoodie-black-disc-5078MB.html?Color=1483" placeholder="https://…"></div><div class="colour"><span>블랙 디스크 / Stratus Grey</span><input type="url" data-slug="canada-goose-lodge-hoodie-men" data-color="Black Disc / Stratus Grey" value="https://www.canadagoose.com/ca/en/pr/lodge-hoodie-black-disc-5078MB.html?Color=9838" placeholder="https://…"></div><div class="colour"><span>클래식 디스크 / 애틀랜틱 네이비</span><input type="url" data-slug="canada-goose-lodge-hoodie-men" data-color="Classic Disc / Atlantic Navy" value="https://www.canadagoose.com/ca/en/pr/lodge-hoodie-5078M.html" placeholder="https://…"></div><div class="colour"><span>클래식 디스크 / 블랙</span><input type="url" data-slug="canada-goose-lodge-hoodie-men" data-color="Classic Disc / Black" value="https://www.canadagoose.com/ca/en/pr/lodge-hoodie-5078M.html?Color=9061" placeholder="https://…"></div><div class="colour"><span>클래식 디스크 / 카민 레드</span><input type="url" data-slug="canada-goose-lodge-hoodie-men" data-color="Classic Disc / Carmine Red" value="https://www.canadagoose.com/ca/en/pr/lodge-hoodie-5078M.html?Color=9839" placeholder="https://…"></div><div class="colour"><span>클래식 디스크 / 밀리터리 탄</span><input type="url" data-slug="canada-goose-lodge-hoodie-men" data-color="Classic Disc / Military Tan" value="https://www.canadagoose.com/ca/en/pr/lodge-hoodie-5078M.html?Color=9113" placeholder="https://…"></div></details></td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">캐나다구스 <span class="chip quiet">확장</span></td>
+  <td><div class="name">MacMillan Parka</div>
+      <div class="meta">canada-goose-macmillan-parka-men · 2080MB 2080M</div></td>
+  <td><div class="meta">2개 페이지</div>
+      <input type="url" data-slug="canada-goose-macmillan-parka-men" value="https://www.canadagoose.com/ca/en/pr/macmillan-parka-black-disc-2080MB.html" placeholder="https://…">
+      <details><summary>색상별 주소 6개</summary><div class="colour"><span>블랙 디스크 / 블랙</span><input type="url" data-slug="canada-goose-macmillan-parka-men" data-color="Black Disc / Black" value="https://www.canadagoose.com/ca/en/pr/macmillan-parka-black-disc-2080MB.html" placeholder="https://…"></div><div class="colour"><span>블랙 디스크 / 노스 스타 화이트</span><input type="url" data-slug="canada-goose-macmillan-parka-men" data-color="Black Disc / North Star White" value="https://www.canadagoose.com/ca/en/pr/macmillan-parka-black-disc-2080MB.html?Color=433" placeholder="https://…"></div><div class="colour"><span>클래식 디스크 / 애틀랜틱 네이비</span><input type="url" data-slug="canada-goose-macmillan-parka-men" data-color="Classic Disc / Atlantic Navy" value="https://www.canadagoose.com/ca/en/pr/macmillan-parka-2080M.html?Color=9063" placeholder="https://…"></div><div class="colour"><span>클래식 디스크 / 블랙</span><input type="url" data-slug="canada-goose-macmillan-parka-men" data-color="Classic Disc / Black" value="https://www.canadagoose.com/ca/en/pr/macmillan-parka-2080M.html?Color=9061" placeholder="https://…"></div><div class="colour"><span>클래식 디스크 / 그래나이트 그레이</span><input type="url" data-slug="canada-goose-macmillan-parka-men" data-color="Classic Disc / Granite Grey" value="https://www.canadagoose.com/ca/en/pr/macmillan-parka-2080M.html?Color=9431" placeholder="https://…"></div><div class="colour"><span>클래식 디스크 / 라임스톤</span><input type="url" data-slug="canada-goose-macmillan-parka-men" data-color="Classic Disc / Limestone" value="https://www.canadagoose.com/ca/en/pr/macmillan-parka-2080M.html?Color=9432" placeholder="https://…"></div></details></td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">캐나다구스 <span class="chip quiet">확장</span></td>
+  <td><div class="name">Murray Parka</div>
+      <div class="meta">canada-goose-murray-parka-men · 1741M</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="canada-goose-murray-parka-men" value="https://www.canadagoose.com/ca/en/pr/murray-parka-1741M.html?Color=9061" placeholder="https://…">
+      <details><summary>색상별 주소 3개</summary><div class="colour"><span>블랙</span><input type="url" data-slug="canada-goose-murray-parka-men" data-color="Black" value="https://www.canadagoose.com/ca/en/pr/murray-parka-1741M.html?Color=9061" placeholder="https://…"></div><div class="colour"><span>밀리터리 탄</span><input type="url" data-slug="canada-goose-murray-parka-men" data-color="Military Tan" value="https://www.canadagoose.com/ca/en/pr/murray-parka-1741M.html" placeholder="https://…"></div><div class="colour"><span>녹턴</span><input type="url" data-slug="canada-goose-murray-parka-men" data-color="Nocturne" value="https://www.canadagoose.com/ca/en/pr/murray-parka-1741M.html?Color=9858" placeholder="https://…"></div></details></td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">캐나다구스 <span class="chip quiet">확장</span></td>
+  <td><div class="name">Wyndham Parka</div>
+      <div class="meta">canada-goose-wyndham-parka-men · 2048MB 2048M</div></td>
+  <td><div class="meta">2개 페이지</div>
+      <input type="url" data-slug="canada-goose-wyndham-parka-men" value="https://www.canadagoose.com/ca/en/pr/wyndham-parka-black-disc-2048MB.html?Color=9061" placeholder="https://…">
+      <details><summary>색상별 주소 8개</summary><div class="colour"><span>블랙 디스크 / 블랙</span><input type="url" data-slug="canada-goose-wyndham-parka-men" data-color="Black Disc / Black" value="https://www.canadagoose.com/ca/en/pr/wyndham-parka-black-disc-2048MB.html?Color=9061" placeholder="https://…"></div><div class="colour"><span>블랙 디스크 / Dusk Blue</span><input type="url" data-slug="canada-goose-wyndham-parka-men" data-color="Black Disc / Dusk Blue" value="https://www.canadagoose.com/ca/en/pr/wyndham-parka-black-disc-2048MB.html?Color=9128" placeholder="https://…"></div><div class="colour"><span>블랙 디스크 / 라임스톤</span><input type="url" data-slug="canada-goose-wyndham-parka-men" data-color="Black Disc / Limestone" value="https://www.canadagoose.com/ca/en/pr/wyndham-parka-black-disc-2048MB.html?Color=432" placeholder="https://…"></div><div class="colour"><span>블랙 디스크 / 노스 스타 화이트</span><input type="url" data-slug="canada-goose-wyndham-parka-men" data-color="Black Disc / North Star White" value="https://www.canadagoose.com/ca/en/pr/wyndham-parka-black-disc-2048MB.html?Color=9433" placeholder="https://…"></div><div class="colour"><span>클래식 디스크 / 애틀랜틱 네이비</span><input type="url" data-slug="canada-goose-wyndham-parka-men" data-color="Classic Disc / Atlantic Navy" value="https://www.canadagoose.com/ca/en/pr/wyndham-parka-2048M.html?Color=9063" placeholder="https://…"></div><div class="colour"><span>클래식 디스크 / 블랙</span><input type="url" data-slug="canada-goose-wyndham-parka-men" data-color="Classic Disc / Black" value="https://www.canadagoose.com/ca/en/pr/wyndham-parka-2048M.html?Color=9061" placeholder="https://…"></div><div class="colour"><span>클래식 디스크 / 그래나이트 그레이</span><input type="url" data-slug="canada-goose-wyndham-parka-men" data-color="Classic Disc / Granite Grey" value="https://www.canadagoose.com/ca/en/pr/wyndham-parka-black-disc-2048MB.html?Color=9128" placeholder="https://…"></div><div class="colour"><span>클래식 디스크 / 라임스톤</span><input type="url" data-slug="canada-goose-wyndham-parka-men" data-color="Classic Disc / Limestone" value="https://www.canadagoose.com/ca/en/pr/wyndham-parka-2048M.html?Color=9432" placeholder="https://…"></div></details></td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">코치</td>
+  <td><div class="name">Brooklyn Shoulder Bag 28</div>
+      <div class="meta">coach-brooklyn-shoulder-bag-28-women · CDZ42 CU068 CDU75 CW637</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="coach-brooklyn-shoulder-bag-28-women" value="https://ca.coach.com/en/products/brooklyn-shoulder-bag-28/CDZ42.html" placeholder="https://…">
+      </td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">코치</td>
+  <td><div class="name">Brooklyn Shoulder Bag 34</div>
+      <div class="meta">coach-brooklyn-shoulder-bag-34-women · CCU00 CCU01</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="coach-brooklyn-shoulder-bag-34-women" value="https://ca.coach.com/en/products/brooklyn-shoulder-bag-34/CCU00.html" placeholder="https://…">
+      </td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">코치</td>
+  <td><div class="name">Chelsea Shoulder Bag 30</div>
+      <div class="meta">coach-chelsea-shoulder-bag-30-women · CDS58</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="coach-chelsea-shoulder-bag-30-women" value="https://ca.coach.com/en/products/chelsea-shoulder-bag-30/CDS58.html" placeholder="https://…">
+      </td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">코치</td>
+  <td><div class="name">Ella Shoulder Bag</div>
+      <div class="meta">coach-ella-shoulder-bag-women · CCE47 CET38</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="coach-ella-shoulder-bag-women" value="https://ca.coach.com/en/products/ella-shoulder-bag/CCE47.html" placeholder="https://…">
+      </td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">코치</td>
+  <td><div class="name">Jade Drawstring Bag</div>
+      <div class="meta">coach-jade-drawstring-bag-women · CER86</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="coach-jade-drawstring-bag-women" value="https://ca.coach.com/en/products/jade-drawstring-bag/CER86.html" placeholder="https://…">
+      </td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">코치</td>
+  <td><div class="name">Lana Shoulder Bag 19</div>
+      <div class="meta">coach-lana-shoulder-bag-19-women · CCY32</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="coach-lana-shoulder-bag-19-women" value="https://ca.coach.com/en/products/lana-shoulder-bag-19/CCY32.html" placeholder="https://…">
+      </td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">코치</td>
+  <td><div class="name">Station Carryall Bag</div>
+      <div class="meta">coach-station-carryall-bag-women · CET29 CET31</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="coach-station-carryall-bag-women" value="https://ca.coach.com/en/products/station-carryall-bag/CET29.html" placeholder="https://…">
+      </td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">코치</td>
+  <td><div class="name">Teri Mini Crossbody</div>
+      <div class="meta">coach-teri-mini-crossbody-women · CDP30 CW309 CW323 CFF98</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="coach-teri-mini-crossbody-women" value="https://ca.coach.com/en/products/teri-mini-crossbody-bag-with-quilting/CDP30.html" placeholder="https://…">
+      </td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">코치</td>
+  <td><div class="name">Teri Shoulder Bag</div>
+      <div class="meta">coach-teri-shoulder-bag-women · CV934 CV933 CFG06</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="coach-teri-shoulder-bag-women" value="https://ca.coach.com/en/products/teri-shoulder-bag/CV934.html" placeholder="https://…">
+      </td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">폴로 랄프로렌 <span class="chip quiet">확장</span></td>
+  <td><div class="name">Cable-Knit Cotton Cardigan</div>
+      <div class="meta">polo-cable-knit-cotton-cardigan-men · 100066198</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="polo-cable-knit-cotton-cardigan-men" value="https://www.ralphlauren.ca/men-clothing-sweaters/cable-knit-cotton-cardigan/100066198.html" placeholder="https://…">
+      </td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">폴로 랄프로렌 <span class="chip quiet">확장</span></td>
+  <td><div class="name">Cable-Knit Cotton Crewneck Cardigan</div>
+      <div class="meta">polo-cable-knit-cotton-crewneck-cardigan-women · 100045499</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="polo-cable-knit-cotton-crewneck-cardigan-women" value="https://www.ralphlauren.ca/women-clothing-sweaters/cable-knit-cotton-crewneck-cardigan/638619.html" placeholder="https://…">
+      </td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">폴로 랄프로렌 <span class="chip quiet">확장</span></td>
+  <td><div class="name">Cable-Knit Cotton Crewneck Sweater</div>
+      <div class="meta">polo-cable-knit-cotton-crewneck-sweater-women · 638616</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="polo-cable-knit-cotton-crewneck-sweater-women" value="https://www.ralphlauren.ca/women-clothing-sweaters/cable-knit-cotton-crewneck-sweater/638616.html" placeholder="https://…">
+      </td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">폴로 랄프로렌 <span class="chip quiet">확장</span></td>
+  <td><div class="name">Cable-Knit Cotton Full-Zip Sweater</div>
+      <div class="meta">polo-cable-knit-cotton-full-zip-sweater-men · 634135</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="polo-cable-knit-cotton-full-zip-sweater-men" value="https://www.ralphlauren.ca/men-clothing-sweaters/cable-knit-cotton-full-zip-sweater/634135.html" placeholder="https://…">
+      </td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">폴로 랄프로렌 <span class="chip quiet">확장</span></td>
+  <td><div class="name">Cable-Knit Cotton Polo Sweater</div>
+      <div class="meta">polo-cable-knit-cotton-polo-sweater-men · 650001</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="polo-cable-knit-cotton-polo-sweater-men" value="https://www.ralphlauren.ca/men-clothing-sweaters/cable-knit-cotton-polo-sweater-/650001.html" placeholder="https://…">
+      </td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">폴로 랄프로렌 <span class="chip quiet">확장</span></td>
+  <td><div class="name">Cable-Knit Cotton Quarter-Zip Sweater</div>
+      <div class="meta">polo-cable-knit-cotton-quarter-zip-sweater-women · 100040971</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="polo-cable-knit-cotton-quarter-zip-sweater-women" value="https://www.ralphlauren.ca/women-clothing-sweaters/cable-knit-cotton-quarter-zip-sweater/100040971.html#lang=en_CA&amp;rootLevelCat=&amp;br=t&amp;q=Cable-Knit%2BCotton%2BQuarter-Zip%2BSweater&amp;start=1" placeholder="https://…">
+      </td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">폴로 랄프로렌 <span class="chip quiet">확장</span></td>
+  <td><div class="name">Cable-Knit Wool-Cashmere Cardigan</div>
+      <div class="meta">polo-cable-knit-wool-cashmere-cardigan-men · 100103776</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="polo-cable-knit-wool-cashmere-cardigan-men" value="https://www.ralphlauren.ca/men-clothing-sweaters/cable-knit-wool-cashmere-cardigan/100103776.html" placeholder="https://…">
+      </td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">폴로 랄프로렌 <span class="chip quiet">확장</span></td>
+  <td><div class="name">Cable-Knit Wool-Cashmere Polo Sweater</div>
+      <div class="meta">polo-cable-knit-wool-cashmere-polo-sweater-women · 100058394</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="polo-cable-knit-wool-cashmere-polo-sweater-women" value="https://www.ralphlauren.ca/women-clothing-sweaters/cable-knit-wool-cashmere-polo-sweater/100058394.html" placeholder="https://…">
+      </td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">폴로 랄프로렌 <span class="chip quiet">확장</span></td>
+  <td><div class="name">Cable-Knit Wool-Cashmere Sweater</div>
+      <div class="meta">polo-cable-knit-wool-cashmere-sweater-men · 100066187</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="polo-cable-knit-wool-cashmere-sweater-men" value="https://www.ralphlauren.ca/men-clothing-sweaters/cable-knit-wool-cashmere-sweater/100066187.html" placeholder="https://…">
+      </td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">폴로 랄프로렌 <span class="chip quiet">확장</span></td>
+  <td><div class="name">Cable-Knit Wool-Cashmere Sweater</div>
+      <div class="meta">polo-cable-knit-wool-cashmere-sweater-women · 648895</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="polo-cable-knit-wool-cashmere-sweater-women" value="https://www.ralphlauren.ca/women-clothing-sweaters/cable-knit-wool-cashmere-sweater/648895.html" placeholder="https://…">
+      </td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr>
+<tr class="">
+  <td class="meta">폴로 랄프로렌 <span class="chip quiet">확장</span></td>
+  <td><div class="name">Cable-Knit Wool-Cashmere Sweater2</div>
+      <div class="meta">polo-cable-knit-wool-cashmere-sweater2-men · 625239</div></td>
+  <td><div class="meta">1개 페이지</div>
+      <input type="url" data-slug="polo-cable-knit-wool-cashmere-sweater2-men" value="https://www.ralphlauren.ca/men-clothing-sweaters/cable-knit-wool-cashmere-sweater/625239.html" placeholder="https://…">
+      </td>
+  <td class="num meta" title="">수집 전</td>
+  <td class="num"><span class="meta">—</span></td>
+</tr></tbody>
+</table>
+
+<h2>고친 주소 저장하기</h2>
+<p class="hint">이 페이지는 파일이라 스스로 저장하지 못한다.
+아래를 <code>스마일리키/scripts/official-urls.json</code> 에 붙여 넣고
+<code>npm run catalog:import</code> 를 돌리면 반영된다.</p>
+<div class="row">
+  <button class="solid" id="copy" disabled>JSON 복사</button>
+  <span class="meta" id="status">고친 것 없음</span>
+</div>
+<pre id="out">{}</pre>
+
+<h2>북마클릿</h2>
+<p class="hint">확장이 못 가는 곳이나, 새 상품 주소를 학습시킬 때 쓴다.
+아래 두 개를 북마크바로 끌어다 놓는다 (안 보이면 <code>Ctrl+Shift+B</code>).</p>
+<div class="row">
+  <a class="drag" href="javascript:(function(){function readDoc(doc,win){/** 사이즈처럼 생긴 라벨.* 숫자는 신발 치수 범위(5~15)로 좁힌다 — 넓게 잡으면 수량 선택의 &quot;1&quot; 을* 사이즈로 오인한다(실측: 랄프로렌에서 &quot;1&quot; 이 매번 첫 사이즈로 잡혔다).* 룰루레몬처럼 &quot;M/L&quot;, &quot;XXS/XS&quot; 로 묶어 파는 경우도 사이즈다.*/var SZ=/^(XXXS|XXS|XS|S|M|L|XL|XXL|XXXL|[2-4]XL|(XXS|XS|S|M|L|XL|XXL)\/(XS|S|M|L|XL|XXL)|([5-9]|1[0-5])(\.5)?)$/i;/** 같은 사이즈를 사이트마다 다르게 쓴다 — 캐나다구스는 2XL·3XL, JSON-LD 는 XXL·XXXL.* 표기를 안 맞추면 화면에서 읽은 값이 JSON-LD 와 다른 줄로 들어가고,* **화면이 재고 있다고 한 사이즈가 품절로 남는다**(실측: Garson Vest S).*/function normSize(x){var m=/^([2-4])XL$/i.exec(x);return m?new Array(Number(m[1])+1).join('X')+'L':x;}function txt(e){return (e.textContent||'').replace(/\s+/g,' ').trim()}function flagged(e){if(!e||!e.getAttribute)return false;if(e.disabled===true)return true;if(e.getAttribute('aria-disabled')==='true')return true;if(e.getAttribute('data-available')==='false')return true;if(e.getAttribute('data-instock')==='false')return true;var c=(e.className||'')+' '+(e.getAttribute('data-state')||'')+' '+(e.getAttribute('data-status')||'');if(typeof c!=='string')c=String(c);return /disabled|unavailable|sold-?out|\boos\b|out-of-stock|notify-me/i.test(c);}function unavail(e){/** 품절 표시가 버튼 자신에 붙어 있지 않은 경우가 많다.* &lt;li class=&quot;unavailable&quot;&gt;&lt;input disabled&gt;&lt;label&gt;M&lt;/label&gt;&lt;/li&gt; 처럼* 라벨을 후보로 잡으면 정작 표시는 부모나 형제 input 에 있다.* 그래서 자신 · 부모 1단계 · 내부 input · label[for] 이 가리키는 input 을 함께 본다.*/if(flagged(e))return true;if(flagged(e.parentElement))return true;try{var inner=e.querySelector&amp;&amp;e.querySelector('input,button');if(flagged(inner))return true;var f=e.getAttribute('for');if(f&amp;&amp;flagged(doc.getElementById(f)))return true;}catch(err){}try{/** 취소선이 버튼 자신이 아니라 안쪽 span 에 걸린 사이트가 있다.* 자신만 보면 품절이 재고 있음으로 읽힌다 — 없는 재고를 만드는 쪽이라 더 나쁘다.*/var nodes=[e].concat([].slice.call(e.querySelectorAll?e.querySelectorAll('*'):[],0,4));for(var q=0;q&lt;nodes.length;q++){var st=win.getComputedStyle(nodes[q]);if(!st)continue;if(st.textDecorationLine&amp;&amp;st.textDecorationLine.indexOf('line-through')&gt;=0)return true;if(nodes[q]===e&amp;&amp;parseFloat(st.opacity)&lt;0.5)return true;}}catch(err){}return false;}function selected(e){if(e.getAttribute('aria-pressed')==='true')return true;if(e.getAttribute('aria-checked')==='true')return true;if(e.getAttribute('aria-selected')==='true')return true;if(e.checked)return true;return /selected|active|is-current/i.test(e.className||'');}var seen={},sizes=[],probe=[];var cand=doc.querySelectorAll('button,[role=radio],[role=button],label,li,a,option');for(var i=0;i&lt;cand.length&amp;&amp;sizes.length&lt;60;i++){var e=cand[i],t=txt(e);if(!t||t.length&gt;5||!SZ.test(t))continue;if(seen[t.toUpperCase()])continue;seen[t.toUpperCase()]=1;sizes.push({label:normSize(t.toUpperCase()),available:!unavail(e),selected:selected(e)});/** 품절 판정이 틀렸을 때 원인을 알 수 있도록 후보 요소의 속성을 그대로 담는다.* 사이트 마크업을 직접 볼 수 없는 상태에서 규칙을 고치려면 이 원본이 필요하다.*/if(probe.length&lt;12){var pe=e.parentElement;probe.push({label:t.toUpperCase(),tag:e.tagName,cls:String(e.className||'').slice(0,90),aria:e.getAttribute('aria-disabled'),dis:!!e.disabled,pTag:pe?pe.tagName:null,pCls:pe?String(pe.className||'').slice(0,90):null,html:(e.outerHTML||'').slice(0,220)});}}var col=null;var cs=doc.querySelectorAll('[data-testid*=colour],[data-testid*=color],[class*=swatch],[class*=colour],[class*=color]');for(var j=0;j&lt;cs.length;j++){if(!selected(cs[j]))continue;var lbl=cs[j].getAttribute('aria-label')||cs[j].getAttribute('title')||txt(cs[j]);if(lbl){col=lbl.replace(/^(colou?r:?\s*)/i,'').trim();break;}}/** 스와치가 선택 표시를 안 주는 사이트가 있다. 그러면 색상을 모르고, 색상을 모르면* 화면에서 읽은 사이즈를 **어느 줄에 합칠지 몰라 통째로 버린다** — 실측:* 캐나다구스에서 화면이 재고 있다고 한 사이즈가 품절로 남았다.* 화면은 &quot;Colour: Volcano&quot; 라고 적어 두므로 그 문구를 읽는다.*/if(!col){var body=txt(doc.body).slice(0,4000);var m=/(?:colou?r|색상)\s*[::]\s*([A-Za-z가-힣][A-Za-z가-힣 '\/-]{1,28})/i.exec(body);if(m)col=m[1].trim().replace(/\s+(size|사이즈).*$/i,'');}var n=doc.querySelectorAll('script[type=&quot;application/ld+json&quot;]');return {jsonld:[].map.call(n,function(s){return s.textContent}),dom:{selectedColour:col,sizes:sizes},probe:probe};}function swatchesOf(doc){var out=[],seen={};var sel='[data-testid*=colour],[data-testid*=color],[class*=swatch],[class*=colour],[class*=color]';var all=doc.querySelectorAll(sel);for(var i=0;i&lt;all.length;i++){var e=all[i];if(e.tagName!=='BUTTON'&amp;&amp;e.tagName!=='A'&amp;&amp;e.tagName!=='LABEL'&amp;&amp;e.getAttribute('role')!=='radio')continue;var lbl=e.getAttribute('aria-label')||e.getAttribute('title')||(e.textContent||'').trim();if(!lbl)continue;lbl=lbl.replace(/^(colou?r:?\s*)/i,'').trim();if(!lbl||lbl.length&gt;40||seen[lbl])continue;seen[lbl]=1; out.push({el:e,label:lbl});}return out;}function readColours(getDoc,getWin,budget,done){var d0=getDoc(), w0=getWin();if(!d0||!w0){ done([]); return; }var basePath=w0.location?w0.location.pathname:'';var sw=swatchesOf(d0), labels=[];for(var i=0;i&lt;sw.length&amp;&amp;labels.length&lt;budget;i++)labels.push(sw[i].label);if(labels.length&lt;2){ done([]); return; }var got=[], n=0;function step(){if(n&gt;=labels.length){ done(got); return; }var label=labels[n++];var d=getDoc(), w=getWin();if(!d||!w){ done(got); return; }var list=swatchesOf(d), el=null;for(var k=0;k&lt;list.length;k++)if(list[k].label===label){ el=list[k].el; break; }if(!el){ step(); return; }try{ el.click(); }catch(e){}setTimeout(function(){var dd=getDoc(), ww=getWin();if(!dd||!ww){ done(got); return; }if(ww.location&amp;&amp;ww.location.pathname!==basePath){ done(got); return; }var r=readDoc(dd,ww);if(r.dom.sizes.length)got.push({colour:r.dom.selectedColour||label,sizes:r.dom.sizes});step();},1400);}step();}function download(d){var u=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:'application/json'}));var a=document.createElement('a');a.href=u;a.download='ricky-stock-'+Date.now()+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u)},1000);}function isProduct(u){var h=location.hostname;if(h.indexOf('coach.com')&gt;=0) return /\/products\/.+\.html$/.test(u);if(h.indexOf('ralphlauren')&gt;=0) return /[-\/]\d{3,12}\.html/.test(u);if(h.indexOf('lululemon')&gt;=0) return u.indexOf('/p/')&gt;=0;if(h.indexOf('arcteryx')&gt;=0) return u.indexOf('/shop/')&gt;=0 &amp;&amp; /-\d{4}(\?|#|$)/.test(u);if(h.indexOf('canadagoose')&gt;=0) return /-\d{4}[A-Z]?\.html/.test(u);if(h.indexOf('tumi')&gt;=0) return u.indexOf('/p/')&gt;=0 || /-\d{9,}\.html/.test(u);return /\/(products?|p)\//.test(u) || /-\d{3,12}\.html/.test(u);}function codeInUrl(u,code){var U=(u.split('?')[0]||u).toUpperCase(), C=String(code).toUpperCase();if(U.indexOf('/'+C+'.HTML')&gt;=0)return true;if(/^X[0-9]{6,}$/.test(C)&amp;&amp;U.indexOf('-'+C.slice(-4))&gt;=0)return true;/** 캐나다구스는 코드가 경로 조각의 꼬리다 — /macmillan-parka-2080MB.html* 2080M 이 2080MB 의 접두사이므로 .HTML 까지 붙여 경계를 맞춘다.* 안 그러면 Classic 코드가 Black 페이지에도 걸린다.*/if(/^[0-9]{4}[A-Z]{0,2}$/.test(C)&amp;&amp;U.indexOf('-'+C+'.HTML')&gt;=0)return true;return false;}function slugInUrl(u,slug){/** 앞뒤에 구분자를 붙여 **경계**를 맞춘다.* 안 붙이면 'mens-fast-and-free-trail-running-vest' 가* 'wo|mens-fast-and-free-trail-running-vest' 안에서 걸려* 남성 상품이 여성 URL 에 붙는다 (실측: 룰루레몬은 남녀 이름이 똑같다).*/var N='-'+String(u).toLowerCase().replace(/[^a-z0-9]+/g,'-')+'-';return N.indexOf('-'+slug+'-')&gt;=0;}var CATALOG_FP=&quot;eb876bbf&quot;;var BY_HOST={&quot;arcteryx.com&quot;:[&quot;X000010932&quot;,&quot;X000010287&quot;,&quot;X000009989&quot;,&quot;X000009899&quot;,&quot;X000009556&quot;,&quot;X000009561&quot;,&quot;X000009906&quot;,&quot;X000011062&quot;,&quot;X000010510&quot;,&quot;X000010878&quot;,&quot;X000010511&quot;,&quot;X000010553&quot;,&quot;X000010854&quot;,&quot;X000010606&quot;,&quot;X000009557&quot;,&quot;X000009156&quot;,&quot;X000009910&quot;,&quot;X000010941&quot;,&quot;X000010276&quot;,&quot;X000009914&quot;,&quot;X000010094&quot;,&quot;X000009855&quot;,&quot;X000009511&quot;,&quot;X000009863&quot;,&quot;X000010746&quot;,&quot;X000009466&quot;,&quot;X000009512&quot;,&quot;X000010924&quot;,&quot;X000009456&quot;,&quot;X000010327&quot;,&quot;X000010263&quot;,&quot;X000010539&quot;,&quot;X000010268&quot;],&quot;shop.lululemon.com&quot;:[],&quot;ca.coach.com&quot;:[&quot;CDZ42&quot;,&quot;CU068&quot;,&quot;CDU75&quot;,&quot;CW637&quot;,&quot;CCU00&quot;,&quot;CCU01&quot;,&quot;CDS58&quot;,&quot;CCE47&quot;,&quot;CET38&quot;,&quot;CER86&quot;,&quot;CCY32&quot;,&quot;CET29&quot;,&quot;CET31&quot;,&quot;CDP30&quot;,&quot;CW309&quot;,&quot;CW323&quot;,&quot;CFF98&quot;,&quot;CV934&quot;,&quot;CV933&quot;,&quot;CFG06&quot;],&quot;canadagoose.com&quot;:[&quot;5460K&quot;,&quot;4576K&quot;,&quot;4554K&quot;,&quot;4552Y&quot;,&quot;4559Y&quot;,&quot;4557Y&quot;,&quot;4554Y&quot;,&quot;1925MB&quot;,&quot;4159MB&quot;,&quot;2054M&quot;,&quot;2081MB&quot;,&quot;2052M&quot;,&quot;2052MT&quot;,&quot;2052MB&quot;,&quot;5078MB&quot;,&quot;5078M&quot;,&quot;2080MB&quot;,&quot;2080M&quot;,&quot;1741M&quot;,&quot;2048MB&quot;,&quot;2048M&quot;],&quot;ralphlauren.ca&quot;:[&quot;100066198&quot;,&quot;634135&quot;,&quot;650001&quot;,&quot;100103776&quot;,&quot;100066187&quot;,&quot;625239&quot;,&quot;100045499&quot;,&quot;638616&quot;,&quot;100040971&quot;,&quot;100058394&quot;,&quot;648895&quot;]};var NAME_HOST={&quot;arcteryx.com&quot;:[&quot;Alpha Jacket (남성)&quot;,&quot;Alpha SL Jacket (남성)&quot;,&quot;Alpha SV Jacket (아울렛) (남성)&quot;,&quot;Alpha SV Jacket (남성)&quot;,&quot;Atom Hoody (남성)&quot;,&quot;Atom Jacket (남성)&quot;,&quot;Beta AR Jacket (남성)&quot;,&quot;Beta Insulated Jacket (남성)&quot;,&quot;Beta Jacket (남성)&quot;,&quot;Beta SL Jacket (아울렛) (남성)&quot;,&quot;Beta SL Jacket (남성)&quot;,&quot;Gamma Lightweight Hoody (남성)&quot;,&quot;Proton SL Hoody (남성)&quot;,&quot;Ralle Down Parka (남성)&quot;,&quot;Sabre SV Jacket (남성)&quot;,&quot;Serratus Hoody (남성)&quot;,&quot;Squamish Hoody (남성)&quot;,&quot;Therme Down Parka (남성)&quot;,&quot;Altira Cropped Jacket (여성)&quot;,&quot;Atom Jacket (여성)&quot;,&quot;Atom SL Hoody (여성)&quot;,&quot;Beta AR Jacket (여성)&quot;,&quot;Clarkia AR Insulated Hoody (여성)&quot;,&quot;Coelle Jacket (여성)&quot;,&quot;Elec Insulated Jacket (여성)&quot;,&quot;Gamma Lightweight Hoody (여성)&quot;,&quot;Gamma MX Hoody (여성)&quot;,&quot;Naya Cropped Jacket (여성)&quot;,&quot;Naya Cropped Stowhood Jacket (여성)&quot;,&quot;Sentinel Jacket (여성)&quot;,&quot;Squamish Hoody (여성)&quot;],&quot;shop.lululemon.com&quot;:[&quot;Extra Large Claw Hair Clip (여성)&quot;,&quot;Jumbo Claw Clip (여성)&quot;,&quot;Fast and Free Trail Running Vest (남성)&quot;,&quot;Fast and Free Trail Running Vest (여성)&quot;],&quot;ca.coach.com&quot;:[&quot;Brooklyn Shoulder Bag 28 (여성)&quot;,&quot;Brooklyn Shoulder Bag 34 (여성)&quot;,&quot;Chelsea Shoulder Bag 30 (여성)&quot;,&quot;Ella Shoulder Bag (여성)&quot;,&quot;Jade Drawstring Bag (여성)&quot;,&quot;Lana Shoulder Bag 19 (여성)&quot;,&quot;Station Carryall Bag (여성)&quot;,&quot;Teri Mini Crossbody (여성)&quot;,&quot;Teri Shoulder Bag (여성)&quot;],&quot;canadagoose.com&quot;:[&quot;Crofton Hoodie (키즈)&quot;,&quot;Kids Snowy Owl Parka (키즈)&quot;,&quot;Kids Vanier Vest (키즈)&quot;,&quot;Youth Expedition Parka (키즈)&quot;,&quot;Youth Juniper Parka (키즈)&quot;,&quot;Youth Logan Parka (키즈)&quot;,&quot;Youth Vanier Vest (키즈)&quot;,&quot;Crofton EnduraLuxe Vest (남성)&quot;,&quot;Freestyle Crew Vest (남성)&quot;,&quot;Garson Vest (남성)&quot;,&quot;Langford Parka (남성)&quot;,&quot;Lodge Hoodie (남성)&quot;,&quot;MacMillan Parka (남성)&quot;,&quot;Murray Parka (남성)&quot;,&quot;Wyndham Parka (남성)&quot;],&quot;ralphlauren.ca&quot;:[&quot;Cable-Knit Cotton Cardigan (남성)&quot;,&quot;Cable-Knit Cotton Full-Zip Sweater (남성)&quot;,&quot;Cable-Knit Cotton Polo Sweater (남성)&quot;,&quot;Cable-Knit Wool-Cashmere Cardigan (남성)&quot;,&quot;Cable-Knit Wool-Cashmere Sweater (남성)&quot;,&quot;Cable-Knit Wool-Cashmere Sweater2 (남성)&quot;,&quot;Cable-Knit Cotton Crewneck Cardigan (여성)&quot;,&quot;Cable-Knit Cotton Crewneck Sweater (여성)&quot;,&quot;Cable-Knit Cotton Quarter-Zip Sweater (여성)&quot;,&quot;Cable-Knit Wool-Cashmere Polo Sweater (여성)&quot;,&quot;Cable-Knit Wool-Cashmere Sweater (여성)&quot;]};var SLUG_HOST={&quot;shop.lululemon.com&quot;:[&quot;extra-large-claw-hair-clip&quot;,&quot;jumbo-claw-clip&quot;,&quot;fast-and-free-trail-running-vest&quot;,&quot;fast-and-free-trail-running-vest&quot;]};var WANT=[],WANT_NAMES=[],WANT_SLUGS=[];for(var hk in BY_HOST){ if(location.hostname.indexOf(hk)&gt;=0){ WANT=BY_HOST[hk]; WANT_NAMES=NAME_HOST[hk]||[]; WANT_SLUGS=SLUG_HOST[hk]||[]; break; } }var MAX=60, GAP=1200, RENDER=6000;var langM=location.pathname.match(/^\/([a-z]{2})\//);var lang=langM?langM[1]:null;function sameLang(u){if(!lang)return true;var m=u.replace(location.origin,'').match(/^\/([a-z]{2})\//);return !!m&amp;&amp;m[1]===lang;}var cands=[].map.call(document.querySelectorAll('a[href]'),function(a){return a.href});var ABS=/https?:\/\/[^&quot;'\s&lt;&gt;\\)]+/g;cands=cands.concat(document.documentElement.outerHTML.match(ABS)||[]);var urls=[];for(var i=0;i&lt;cands.length;i++){var u=(cands[i]||'').split('#')[0].split('?')[0];if(u.indexOf(location.origin)!==0)continue;if(!sameLang(u))continue;if(!isProduct(u))continue;if(urls.indexOf(u)&lt;0)urls.push(u);}if(!urls.length){alert('이 페이지에서 상품 링크를 찾지 못했습니다.\n카테고리·검색결과·전체보기 페이지에서 눌러 주세요.');return;}var candUrls=urls.slice(0);/** 카탈로그에 등록된 상품만 남긴다.* 전체 목록에는 수백 건이 있지만 우리가 파는 건 그중 일부다.* 다 받으면 시간만 걸리고 어차피 대조 단계에서 버려진다.*/var found=urls.length, hitCodes={}, filtered=false;if(WANT.length){var keep=[];for(var k=0;k&lt;urls.length;k++){for(var c=0;c&lt;WANT.length;c++){if(codeInUrl(urls[k],WANT[c])){ keep.push(urls[k]); hitCodes[WANT[c]]=1; break; }}}urls=keep; filtered=true;} else if(WANT_SLUGS.length){/** 코드 체계가 없는 브랜드(룰루레몬)는 상품명 슬러그로 거른다.* 안 거르면 목록 전체를 받는다 — 실측 81건 · 8분 · 그중 쓸 건 4건이었다.*/var kept=[];for(var k2=0;k2&lt;urls.length;k2++){var got=false;for(var g=0;g&lt;WANT_SLUGS.length;g++){if(!slugInUrl(urls[k2],WANT_SLUGS[g]))continue;/** 여기서 break 하면 안 된다. 카탈로그는 룰루레몬 남녀 조끼를 둘 다* 'Fast and Free Trail Running Vest' 로 들고 있어 슬러그가 똑같다.* 첫 건만 표시하면 나머지 하나가 늘 &quot;못 찾음&quot; 으로 보고된다.*/hitCodes[WANT_NAMES[g]]=1;got=true;}if(got)kept.push(urls[k2]);}urls=kept; filtered=true;}if(filtered&amp;&amp;!urls.length){/** 이름이 사이트와 조금만 달라도 0건이 된다. 그럴 때 막다른 길로 두지 않고* 목록 전체를 받을 선택지를 준다 — 대조는 나중에 사람이 해도 된다.*/var ask='이 페이지에서 카탈로그 상품을 찾지 못했습니다.\n'+'상품 링크는 '+found+'건 보이는데 등록된 상품과 겹치는 게 없습니다.\n\n'+'이 브랜드에 등록된 상품 '+WANT_NAMES.length+'건:\n'+(WANT_NAMES.length?'  '+WANT_NAMES.join('\n  '):'  (없음)')+'\n\n'+'찾는 상품이 이 목록에 없으면 카탈로그에 등록되지 않은 것입니다.\n'+'있는데도 안 걸렸다면 전체보기 목록에서 끝까지 스크롤했는지 확인해 주세요.\n\n'+'그래도 이 목록 전체를 받아 둘까요? (나중에 이름으로 대조합니다)';if(!confirm(ask))return;urls=candUrls; filtered=false;}var n=Math.min(urls.length,MAX);var msg=filtered? '상품 '+found+'건 중 카탈로그 상품 '+urls.length+'건을 찾았습니다.\n': '상품 '+urls.length+'건을 찾았습니다.\n';if(!confirm(msg+n+'건을 수집합니다. 약 '+Math.ceil(n*(RENDER+GAP)/60000)+'분 걸립니다.\n\n창을 닫지 말고 기다려 주세요.'))return;urls=urls.slice(0,n);var box=document.createElement('div');box.style.cssText='position:fixed;z-index:2147483647;right:20px;bottom:20px;background:#111;color:#fff;padding:14px 18px;border-radius:10px;font:13px sans-serif;box-shadow:0 4px 20px rgba(0,0,0,.3)';document.body.appendChild(box);var out=[],idx=0;function one(url,cb){var f=document.createElement('iframe');f.style.cssText='position:fixed;left:-9999px;top:0;width:1280px;height:900px;border:0';var done=false;function finish(item){if(done)return; done=true;try{f.remove()}catch(e){}cb(item);}f.onload=function(){setTimeout(function(){try{var d=f.contentDocument;if(!d)throw new Error('문서 접근 불가');var r=readDoc(d,f.contentWindow);/** JSON-LD 에 색상별 사이즈가 들어 있으면 그걸 쓴다.* 없을 때만 색상을 눌러 가며 읽는다 — 색상 수만큼 시간이 늘어나므로* 필요할 때만 한다. (랄프로렌은 색상 6개 이상이면 사이즈를 빼 버린다)*/var needsCycle=true;for(var q=0;q&lt;r.jsonld.length&amp;&amp;needsCycle;q++){try{var o=JSON.parse(r.jsonld[q]);var ns=(o&amp;&amp;o['@graph'])?o['@graph']:[o];for(var z=0;z&lt;ns.length;z++){var hv=ns[z]&amp;&amp;ns[z].hasVariant;if(hv&amp;&amp;hv.length){var withSize=0;for(var w=0;w&lt;hv.length;w++)if(hv[w].size&amp;&amp;hv[w].color)withSize++;if(withSize&gt;0)needsCycle=false;}}}catch(err){}}if(!needsCycle){finish({url:url,title:d.title||'',jsonld:r.jsonld,dom:r.dom});return;}box.textContent='수집 중 '+(idx+1)+' / '+urls.length+' — 색상별 확인';readColours(function(){ try{ return f.contentDocument; }catch(e){ return null; } },function(){ try{ return f.contentWindow; }catch(e){ return null; } },14,function(byColour){r.dom.byColour=byColour;finish({url:url,title:d.title||'',jsonld:r.jsonld,dom:r.dom});});return;}catch(e){fetch(url,{credentials:'include'}).then(function(res){return res.text()}).then(function(h){var m=h.match(/&lt;script[^&gt;]*application\/ld\+json[^&gt;]*&gt;[\s\S]*?&lt;\/script&gt;/gi)||[];finish({url:url,title:'',jsonld:m.map(function(b){return b.replace(/^&lt;script[^&gt;]*&gt;/i,'').replace(/&lt;\/script&gt;$/i,'')})});}).catch(function(err){ finish({url:url,title:'',jsonld:[],error:String(err).slice(0,80)}); });}},RENDER);};f.onerror=function(){ finish({url:url,title:'',jsonld:[],error:'iframe 로드 실패'}); };f.src=url;document.body.appendChild(f);setTimeout(function(){ finish({url:url,title:'',jsonld:[],error:'시간 초과'}) },RENDER+40000);}function step(){if(idx&gt;=urls.length){box.textContent='완료 — 파일을 저장합니다';var LOOKED=WANT.length?WANT:(WANT_SLUGS.length?WANT_NAMES:[]);if(LOOKED.length){var missed=[];for(var c=0;c&lt;LOOKED.length;c++)if(!hitCodes[LOOKED[c]])missed.push(LOOKED[c]);if(missed.length)setTimeout(function(){alert('수집 완료 '+urls.length+'건.\n\n이 페이지에서 못 찾은 카탈로그 상품 '+missed.length+'건:\n'+missed.slice(0,15).join(', ')+(missed.length&gt;15?' …':'')+'\n\n다른 카테고리에 있거나 판매 종료된 상품입니다.');},1500);}download({v:2,catalogFp:CATALOG_FP,url:location.href,title:document.title,capturedAt:new Date().toISOString(),jsonld:[],batch:out});setTimeout(function(){box.remove()},3000);return;}box.textContent='수집 중 '+(idx+1)+' / '+urls.length;one(urls[idx],function(item){out.push(item); idx++;setTimeout(step,GAP);});}step();})()">RICKY 목록수집</a>
+  <a class="drag" href="javascript:(function(){function readDoc(doc,win){/** 사이즈처럼 생긴 라벨.* 숫자는 신발 치수 범위(5~15)로 좁힌다 — 넓게 잡으면 수량 선택의 &quot;1&quot; 을* 사이즈로 오인한다(실측: 랄프로렌에서 &quot;1&quot; 이 매번 첫 사이즈로 잡혔다).* 룰루레몬처럼 &quot;M/L&quot;, &quot;XXS/XS&quot; 로 묶어 파는 경우도 사이즈다.*/var SZ=/^(XXXS|XXS|XS|S|M|L|XL|XXL|XXXL|[2-4]XL|(XXS|XS|S|M|L|XL|XXL)\/(XS|S|M|L|XL|XXL)|([5-9]|1[0-5])(\.5)?)$/i;/** 같은 사이즈를 사이트마다 다르게 쓴다 — 캐나다구스는 2XL·3XL, JSON-LD 는 XXL·XXXL.* 표기를 안 맞추면 화면에서 읽은 값이 JSON-LD 와 다른 줄로 들어가고,* **화면이 재고 있다고 한 사이즈가 품절로 남는다**(실측: Garson Vest S).*/function normSize(x){var m=/^([2-4])XL$/i.exec(x);return m?new Array(Number(m[1])+1).join('X')+'L':x;}function txt(e){return (e.textContent||'').replace(/\s+/g,' ').trim()}function flagged(e){if(!e||!e.getAttribute)return false;if(e.disabled===true)return true;if(e.getAttribute('aria-disabled')==='true')return true;if(e.getAttribute('data-available')==='false')return true;if(e.getAttribute('data-instock')==='false')return true;var c=(e.className||'')+' '+(e.getAttribute('data-state')||'')+' '+(e.getAttribute('data-status')||'');if(typeof c!=='string')c=String(c);return /disabled|unavailable|sold-?out|\boos\b|out-of-stock|notify-me/i.test(c);}function unavail(e){/** 품절 표시가 버튼 자신에 붙어 있지 않은 경우가 많다.* &lt;li class=&quot;unavailable&quot;&gt;&lt;input disabled&gt;&lt;label&gt;M&lt;/label&gt;&lt;/li&gt; 처럼* 라벨을 후보로 잡으면 정작 표시는 부모나 형제 input 에 있다.* 그래서 자신 · 부모 1단계 · 내부 input · label[for] 이 가리키는 input 을 함께 본다.*/if(flagged(e))return true;if(flagged(e.parentElement))return true;try{var inner=e.querySelector&amp;&amp;e.querySelector('input,button');if(flagged(inner))return true;var f=e.getAttribute('for');if(f&amp;&amp;flagged(doc.getElementById(f)))return true;}catch(err){}try{/** 취소선이 버튼 자신이 아니라 안쪽 span 에 걸린 사이트가 있다.* 자신만 보면 품절이 재고 있음으로 읽힌다 — 없는 재고를 만드는 쪽이라 더 나쁘다.*/var nodes=[e].concat([].slice.call(e.querySelectorAll?e.querySelectorAll('*'):[],0,4));for(var q=0;q&lt;nodes.length;q++){var st=win.getComputedStyle(nodes[q]);if(!st)continue;if(st.textDecorationLine&amp;&amp;st.textDecorationLine.indexOf('line-through')&gt;=0)return true;if(nodes[q]===e&amp;&amp;parseFloat(st.opacity)&lt;0.5)return true;}}catch(err){}return false;}function selected(e){if(e.getAttribute('aria-pressed')==='true')return true;if(e.getAttribute('aria-checked')==='true')return true;if(e.getAttribute('aria-selected')==='true')return true;if(e.checked)return true;return /selected|active|is-current/i.test(e.className||'');}var seen={},sizes=[],probe=[];var cand=doc.querySelectorAll('button,[role=radio],[role=button],label,li,a,option');for(var i=0;i&lt;cand.length&amp;&amp;sizes.length&lt;60;i++){var e=cand[i],t=txt(e);if(!t||t.length&gt;5||!SZ.test(t))continue;if(seen[t.toUpperCase()])continue;seen[t.toUpperCase()]=1;sizes.push({label:normSize(t.toUpperCase()),available:!unavail(e),selected:selected(e)});/** 품절 판정이 틀렸을 때 원인을 알 수 있도록 후보 요소의 속성을 그대로 담는다.* 사이트 마크업을 직접 볼 수 없는 상태에서 규칙을 고치려면 이 원본이 필요하다.*/if(probe.length&lt;12){var pe=e.parentElement;probe.push({label:t.toUpperCase(),tag:e.tagName,cls:String(e.className||'').slice(0,90),aria:e.getAttribute('aria-disabled'),dis:!!e.disabled,pTag:pe?pe.tagName:null,pCls:pe?String(pe.className||'').slice(0,90):null,html:(e.outerHTML||'').slice(0,220)});}}var col=null;var cs=doc.querySelectorAll('[data-testid*=colour],[data-testid*=color],[class*=swatch],[class*=colour],[class*=color]');for(var j=0;j&lt;cs.length;j++){if(!selected(cs[j]))continue;var lbl=cs[j].getAttribute('aria-label')||cs[j].getAttribute('title')||txt(cs[j]);if(lbl){col=lbl.replace(/^(colou?r:?\s*)/i,'').trim();break;}}/** 스와치가 선택 표시를 안 주는 사이트가 있다. 그러면 색상을 모르고, 색상을 모르면* 화면에서 읽은 사이즈를 **어느 줄에 합칠지 몰라 통째로 버린다** — 실측:* 캐나다구스에서 화면이 재고 있다고 한 사이즈가 품절로 남았다.* 화면은 &quot;Colour: Volcano&quot; 라고 적어 두므로 그 문구를 읽는다.*/if(!col){var body=txt(doc.body).slice(0,4000);var m=/(?:colou?r|색상)\s*[::]\s*([A-Za-z가-힣][A-Za-z가-힣 '\/-]{1,28})/i.exec(body);if(m)col=m[1].trim().replace(/\s+(size|사이즈).*$/i,'');}var n=doc.querySelectorAll('script[type=&quot;application/ld+json&quot;]');return {jsonld:[].map.call(n,function(s){return s.textContent}),dom:{selectedColour:col,sizes:sizes},probe:probe};}function download(d){var u=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:'application/json'}));var a=document.createElement('a');a.href=u;a.download='ricky-stock-'+Date.now()+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(u)},1000);}var r=readDoc(document,window);if(!r.jsonld.length&amp;&amp;!r.dom.sizes.length){alert('이 페이지에서 상품 데이터를 찾지 못했습니다.\n상품 상세 페이지에서 눌렀는지 확인해 주세요.');} else {download({v:2,url:location.href,title:document.title,capturedAt:new Date().toISOString(),jsonld:r.jsonld,dom:r.dom,probe:r.probe});}})()">RICKY 재고수집</a>
+</div>
+
+<h2>새 상품을 넣을 때</h2>
+<ol class="steps">
+  <li>상품 폴더와 이미지를 넣고 <code>npm run catalog:import</code></li>
+  <li>이 페이지를 <code>npm run manage</code> 로 다시 만든다 → 새 상품이 맨 위에 <b>주소 없음</b>으로 뜬다</li>
+  <li>공식몰 상품 페이지 주소를 칸에 붙여 넣고, 위 JSON 을 <code>official-urls.json</code> 에 저장</li>
+  <li><code>npm run catalog:import</code> 다시 → <code>npm run extension</code> → 크롬에서 확장 새로고침</li>
+</ol>
+<p class="hint">캐나다구스처럼 색상마다 페이지가 다른 브랜드는 색상별 칸을 쓴다.
+경로가 같은 주소는 자동으로 하나로 접히므로 같은 페이지를 여러 번 열지 않는다.</p>
+
+<script>
+/*
+ * 고친 칸만 모아 official-urls.json 모양으로 만든다.
+ * 안 고친 것까지 내보내면 사람이 무엇을 바꿨는지 알 수 없고,
+ * 카탈로그가 이미 아는 값을 손으로 관리하는 파일에 눌러 담게 된다.
+ *
+ * IIFE 로 감싼다. 최상위 var 는 window 의 속성이 되는데, window 에는 이미
+ * status·name·length 같은 내장 속성이 있어 **조용히 덮어써진다** — 실측:
+ * var status = document.getElementById(...) 는 window.status 가 문자열
+ * 속성이라 엘리먼트가 문자열로 바뀌고, 이후 textContent 대입이 아무 일도 하지 않는다.
+ */
+(function () {
+var out = document.getElementById('out');
+var copy = document.getElementById('copy');
+var note = document.getElementById('status');
+var initial = new Map();
+
+document.querySelectorAll('input[type=url]').forEach(function (el) {
+  initial.set(el, el.value);
+  el.addEventListener('input', rebuild);
+});
+
+function rebuild() {
+  var byProduct = {};
+  var byColor = {};
+  var n = 0;
+
+  document.querySelectorAll('input[type=url]').forEach(function (el) {
+    var changed = el.value.trim() !== initial.get(el).trim();
+    el.classList.toggle('dirty', changed);
+    if (!changed || !el.value.trim()) return;
+    n += 1;
+    var slug = el.dataset.slug;
+    if (el.dataset.color) {
+      (byColor[slug] = byColor[slug] || {})[el.dataset.color] = el.value.trim();
+    } else {
+      byProduct[slug] = el.value.trim();
+    }
+  });
+
+  var merged = {};
+  Object.keys(byProduct).forEach(function (s) { merged[s] = { url: byProduct[s] }; });
+  Object.keys(byColor).forEach(function (s) {
+    merged[s] = Object.assign(merged[s] || {}, { byColor: byColor[s] });
+  });
+
+  out.textContent = JSON.stringify(merged, null, 2);
+  copy.disabled = n === 0;
+  note.textContent = n === 0 ? '고친 것 없음' : '고친 칸 ' + n + '개';
+}
+
+copy.addEventListener('click', function () {
+  navigator.clipboard.writeText(out.textContent).then(
+    function () { note.textContent = '복사했다'; },
+    /* file:// 에서는 클립보드가 막힐 수 있다. 그때는 직접 고르게 둔다. */
+    function () {
+      note.textContent = '복사가 막혔다 — 아래 내용을 직접 선택해 복사해라';
+      var r = document.createRange(); r.selectNodeContents(out);
+      var s = getSelection(); s.removeAllRanges(); s.addRange(r);
+    }
+  );
+});
+})();
+</script>
+</div></body></html>

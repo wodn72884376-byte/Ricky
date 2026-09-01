@@ -42,7 +42,51 @@ Supabase 키가 없어도 스토어 화면은 뜬다. 로그인과 `/admin`은 �
 | `npm run db:check` | 마이그레이션을 PGlite에서 **실제 실행**해 검증 |
 | `npm run design:contrast` | 디자인 토큰의 WCAG 2.2 대비 검사 |
 | `npm run catalog:import` | `아크테릭스/` 폴더 + 가격표 → 카탈로그·이미지 생성 |
+| `npm run db:stock-check` | 재고 연동 전 과정을 PGlite에서 실행 (Supabase 없어도 됨) |
+| `npm run db:stock-load` | 수집 결과 → Supabase 적재. **기본은 미리보기**, 쓰려면 `-- --commit` |
 | `npm run fonts:sync` | Pretendard 재복사 |
+
+## 재고 연동
+
+캐나다 공식몰 재고를 스토어에 연결하는 경로다. 수집기는 `스크래핑/`에 있다.
+
+```
+스크래핑           npm run stock:all       수집 → data/연동-*.json
+  ↓
+상위 프로젝트      npm run db:stock-load   → supplier_listings + stock_checks
+  ↓
+store_variants 뷰                          요청 시점에 구매 가능 여부 판정
+```
+
+**적재는 기본이 미리보기다.** 운영 DB에 쓰는 건 되돌리기 어려워서, `--commit`을 붙여야
+실제로 쓴다. 미리보기는 Supabase 없이도 무엇이 올라갈지 보여준다.
+
+```
+수집 파일 2개 → variant 51건 → 적재 후보 253행
+  재고 상태: { in_stock: 247, out_of_stock: 6 }
+  브랜드   : { polo: 211, lululemon: 42 }
+```
+
+### 이번 회차에 안 담긴 상품은 건드리지 않는다
+
+수집이 실패했거나(차단·마크업 변경) 이번 조회 대상이 아니었을 뿐인데 품절로 적으면
+멀쩡한 상품이 판매 중지된다. 아무것도 안 하면 그 행의 `last_success_at`이 저절로 낡아
+신선도 게이트가 닫는다 — **판매를 막는 쪽으로 저절로 기우는 것이 옳은 방향이다.**
+
+같은 이유로 `availability = 'unknown'`인 사이즈는 행을 만들지 않는다.
+"확인했는데 모름"과 "확인한 적 없음"이 구분되지 않으면 뷰가 신선하다고 착각한다.
+
+### 검증
+
+`npm run db:stock-check`가 마이그레이션 → 카탈로그 적재 → 재고 적재 → 뷰 판정을
+PGlite(WASM Postgres)에서 실제로 돌린다. **적재 변환은 실제 로더와 같은 함수를 쓴다** —
+하네스가 자기만의 변환을 들고 있으면 여기서 통과해도 운영에서 깨진다.
+
+답해야 하는 질문은 하나다: 신선도 게이트가 정말로 작동하는가.
+
+```
+신선도 게이트: 7시간 전 → 구매 가능 0 · 방금 → 182
+```
 
 ## 상품 추가
 

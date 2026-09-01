@@ -36,7 +36,12 @@ export function ProductRail({
       <div className="mb-6 flex items-end justify-between gap-4">
         <div>
           <h2 className="text-editorial font-bold lg:text-headline">BEST</h2>
-          <p className="mt-1 text-body text-muted-text">이번 주에 가장 많이 나간 상품이에요.</p>
+          {/*
+            **판매량 순위가 아니다.** `bestSellers()` 는 한국 정발가와의 차이가 큰 순으로
+            고른다. 주문이 쌓이기 전이라 판매량을 알 수 없고, `/best` 도 같은 사실을 밝힌다 —
+            두 화면이 다른 말을 하면 어느 쪽도 못 믿는다 (DESIGN.md §12-8).
+          */}
+          <p className="mt-1 text-body text-muted-text">한국 정발가와 가장 크게 벌어지는 상품입니다.</p>
         </div>
 
         <div className="flex shrink-0 gap-2">
